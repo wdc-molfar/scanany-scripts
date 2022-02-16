@@ -1,0 +1,26 @@
+{
+  "name": "@molfar/scanany-scripts",
+  "version": "1.0.0",
+  "description": "Scripts for scanany scraper",
+  "directories": {
+    "doc": "doc",
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "debug": "node ./node_modules/@molfar/scanany/example"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wdc-molfar/scanany-scripts.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/wdc-molfar/scanany-scripts/issues"
+  },
+  "homepage": "https://github.com/wdc-molfar/scanany-scripts#readme",
+  "devDependencies": {
+    "@molfar/scanany": "github:boldak/scanany"
+  }
+}

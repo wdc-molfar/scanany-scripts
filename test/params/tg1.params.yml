@@ -1,0 +1,11 @@
+# Параметри, які передаються в скрипт
+# Доступ до них здійснюється за допомогою $ref
+# Наприклад
+# - $ref: params.channel # ("AK47pfl")
+#       transform:
+#         js: (command, context, value) => `https://t.me/s/${value}` # ("https://t.me/s/AK47pfl")
+#       into: params.url
+
+params:
+  type: telegram
+  channel: AK47pfl

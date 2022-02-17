@@ -29,7 +29,7 @@ npm install
 
 ```sh
 
-npm run debug <path to script>
+npm run debug <path to script> [<path to settings>]
 
 ```
 
@@ -554,5 +554,58 @@ d-image:url('//telegram.org/img/emoji/40/F09F9BA2.png')"><b>�</b></i> Нефт
 
 ```
 
+Для виконання з зовнішніми налаштуваннями треба окремо виносити ці налаштування та використовувати:
+
+```sh
+npm run debug ./src/scanany/telegram1.yml ./test/params/tg1.params.yml 
+
+```
+
+параметри з файлу ```./test/params/tg1.params.yml``` будуть передані в скрипт ./src/scanany/telegram1.yml.
+
+В консольному виводі з'явиться додаткова секція ```Call with params```:
+
+```sh
+---------------------------------------------------------------                                                                   
+Debug scanany script: D:\MOLFAR\scanany-scripts\src\scanany\telegram1.yml                                                         
+                                                                                                                                  
+- use:                                                                                                                            
+    # Использование HTTP-запросов                                                                                                 
+    - axios-plugin                                                                                                                
+    # Использование библиотеки cheerio                                                                                            
+    - cheerio-plugin                                                                                                              
+    # Использование js-инъекций                                                                                                   
+    - js-plugin                                                                                                                   
+
+...
+
+                                                                                                                                  
+# Возвращаем из сценария скрапинга значение "messages"                                                                            
+- return: messages                                                                                                                
+---------------------------------------------------------------                                                                   
+Call with params: D:\MOLFAR\scanany-scripts\test\params\tg1.params.yml                                                            
+                                                                                                                                  
+# Параметри, які передаються в скрипт                                                                                             
+# Доступ до них здійснюється за допомогою $ref                                                                                    
+# Наприклад                                                                                                                       
+# - $ref: params.channel # ("AK47pfl")                                                                                            
+#       transform:                                                                                                                
+#         js: (command, context, value) => `https://t.me/s/${value}` # ("https://t.me/s/AK47pfl")                                 
+#       into: params.url                                                                                                          
+                                                                                                                                  
+params:                                                                                                                           
+  type: telegram                                                                                                                  
+  channel: AK47pfl                                                                                                                
+---------------------------------------------------------------                                                                   
+Scanany result:                                                                                                                   
+                                                                                                                                  
+[                                                                                                                                 
+  {                                                                                                                               
+    metadata: {                                                                                                                   
+      text: '  Геополитический апдейт: пока ситуация развивается по дипломатическому пути.  Последние события:  Байден: говорил
+
+ ...     
+
+```
 
 Приклади скриптів та використання plugins можна знайти [тут](https://github.com/boldak/scanany/tree/master/examples/yaml) або на [онлайн-сервісі](http://scanany.herokuapp.com)

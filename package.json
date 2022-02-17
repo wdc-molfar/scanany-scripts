@@ -8,7 +8,7 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "debug": "node ./node_modules/@molfar/scanany/example"
+    "debug": "node ./src/js/debug"
   },
   "repository": {
     "type": "git",

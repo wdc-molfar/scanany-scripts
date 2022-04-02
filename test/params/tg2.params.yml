@@ -1,0 +1,8 @@
+
+service: 
+  scheduler:
+    task:
+      params:
+        type: telegram
+        channel: AK47pfl
+      state: planned  

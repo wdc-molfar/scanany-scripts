@@ -36,7 +36,7 @@ const test = async () => {
 	
 	console.log("Scanany result:")
 	console.log()
-	console.log(result)
+	console.log(JSON.stringify(result, null," "))
 	console.log("---------------------------------------------------------------")
 	
 	// process.exit(0)

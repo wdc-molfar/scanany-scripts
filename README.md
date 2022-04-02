@@ -1,7 +1,7 @@
 # @molfar/scanany-scripts
 Модуль `scanany-scripts` містить описи та [scanany](https://github.com/boldak/scanany)-скрипти 
 для завантаження повних текстів веб-документів (текстів анотацій статей та препринтів, текстів повідомлень) із відкритих публічних сторінок, які наведені на веб-сайтах: 
-- [Twiter](https://twitter.com/)
+- [Twitter](https://twitter.com/)
 - [Youtube](https://www.youtube.com/)
 - [Telegram](https://www.t.me)
 - [Picuki](https://www.picuki.com/)

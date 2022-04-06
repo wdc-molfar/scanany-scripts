@@ -16,13 +16,13 @@
 - map:
 
     # ЭТОТ БЛОК НУЖЕН ТОЛЬКО ДЛЯ ТЕСТИРОВАНИЯ
-    # - $const: 
-    #     type: telegram
-    #     # имя канала (в примере "AK47pfl")
-    #     channel: AK47pfl
-    #   into: params
+    - $const: 
+        type: telegram
+        # имя канала (в примере "AK47pfl")
+        channel: AK47pfl
+      into: params
     
-    # формируем url - https://t.me/s/<<имя канала>> 
+    # формируем url - https://twitter2rss.nomadic.name/<<имя канала>> 
     - $ref: service.scheduler.task.params.channel
       transform:
         js: (command, context, value) => `https://twitter2rss.nomadic.name/${value}`

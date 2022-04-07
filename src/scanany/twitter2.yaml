@@ -9,7 +9,7 @@
 
 - log:
     - $const: DEBUG >> Scanany script settings
-    - $ref: service
+    - $ref: params
 
 # готовим входные данные для скрапинга
 # формируем структуру params
@@ -22,11 +22,11 @@
         channel: HaasF1Team
       into: params
     
-    # формируем url - https://twitter2rss.nomadic.name/<<имя канала>> 
-    - $ref: service.scheduler.task.params.channel
+    # формируем url - hhttps://twitter2rss.nomadic.name/<<имя канала>> 
+    - $ref: params.channel
       transform:
         js: (command, context, value) => `https://twitter2rss.nomadic.name/${value}`
-      into: url
+      into: params.url
     
     # формируем текущую дату в формате "YYYY-MM-DD HH:mm:ss"
     # помещаем в params.createdAt
@@ -34,22 +34,19 @@
         apply:
           - date
           - moment.format: YYYY-MM-DD HH:mm:ss    
-      into: service.scheduler.task.processedAt
+      into: params.createdAt          
 
-    - $const: processed
-      into: service.scheduler.task.state            
-
-# ОТЛАДКА - вывод значения "url" (отключена)
+# ОТЛАДКА - вывод значения "params.url" (отключена)
 # - log:
 #     - $const: "URL:"
-#     - $ref: url  
+#     - $ref: params.url  
 
 # Выбираем данные из источника
 - fetch:
     request:
       method: GET
       url: 
-        $ref: url
+        $ref: params.url
     # преобразуем ответ (response)       
     transform:
       apply:
@@ -61,18 +58,18 @@
     into: page
 
 # Выбираем из "page" элемент DOM (один, первый) для заголовка канала
-# XML-селектор: "title"  
+# CSS-селектор: "div.tgme_channel_info_header_title > span"  
 - once:
     $ref: page
     select: title
     apply:
-      # преобразуем выбранный элемент "title" в текст     
+      # преобразуем выбранный элемент в текст     
       transform: text
       # записываем в "p.title"
       into: p.title
 
 # Выбираем из "page" элемент DOM для описания канала
-# XML-селектор: "description"  
+# CSS-селектор: "div.tgme_channel_info_description"  
 - once:
     $ref: page
     select: description
@@ -82,23 +79,8 @@
       # записываем в "p.description"
       into: p.description
 
-# Выбираем из "page" элемент DOM для аватара канала
-# CSS-селектор: "div.tgme_channel_info > div.tgme_channel_info_header > i > img"  
-#- once:
-#    $ref: page
-#    select: div.tgme_channel_info > div.tgme_channel_info_header > i > img
-#    apply:
-#       -  transform: 
-#            apply:
-#              # выбираем из выбранного элемента атрибут "src" -> { src: "<<value>>"}    
-#              - attributes: src
-#              # возвращаем значение поля "src" 
-#              - project: src 
-#          # записываем результат преобразования в "p.image"
-#          into: p.image
-        
 # Выбираем из "page" все элементы DOM сообщений
-# XML-селектор: "channel"
+# CSS-селектор: "div.tgme_widget_message_bubble"
 # Записываем коллекцию элементов в "res"   
 - all:
     $ref: page
@@ -111,7 +93,6 @@
     in:
       $ref: res
     as: item
-    indexed-by: index
     into: messages
     
     # применить к текущему элементу - "item"
@@ -127,36 +108,6 @@
               - html->$
           into: msg
       
-      # Выбираем из "msg" элемент DOM с заголовком публикации
-      # XML-селектор: "title"
-      - once:
-          $ref: msg
-          select: title
-          apply:
-            - transform: 
-                
-                # выбранный элемент "title" преобразуем в текст и помещаем в "message.title"        
-                apply:
-                  - text
-                  - js: '(command, context, value) => value.replace(/[\u2000-\uffff]+/g, " ")'
-              # результат - в "message.title"
-              into: message.title
-
-      # Выбираем из "msg" элемент DOM с именем автора публикации
-      # XML-селектор: "title"
-      - once:
-          $ref: msg
-          select: author
-          apply:
-            - transform: 
-                
-                # выбранный элемент "author" преобразуем в текст и помещаем в "message.author"        
-                apply:
-                  - text
-                  - js: '(command, context, value) => value.replace(/[\u2000-\uffff]+/g, " ")'
-              # результат - в "message.author"
-              into: message.author
-
       # Выбираем из "msg" элемент DOM с текстом сообщения
       # XML-селектор: "description"
       - once:
@@ -169,72 +120,51 @@
                 apply:
                   - text
                   - js: '(command, context, value) => value.replace(/[\u2000-\uffff]+/g, " ")'
-              into: message.text
+              into: message.metadata.text
             
             # его же преобразуем в html и помещаем в "message.html"
             - transform: html
-              into: message.html
-      
+              into: message.metadata.html
+
       # Выбираем из "msg" элемент DOM с датой публикации
-      # XML-селектор: "pubDate"
+      # CSS-селектор: "time"
       - once:
           $ref: msg
           select: pubDate
           apply:
             - transform: 
                 
-                # преобразуем "pubDate" в формат "YYYY-MM-DD HH:mm:ss"         
+                # Забираем из выбранного элемента атрибут "datetime" и преобразуем его в формат "YYYY-MM-DD HH:mm:ss"         
                 apply:
+                  - attributes: datetime
+                  - project: datetime
                   - date
                   - moment.format: YYYY-MM-DD HH:mm:ss
-              # результат - в "message.publishedAt"
-              into: message.publishedAt
+              # результат - в "message.metadata.publishedAt"
+              into: message.metadata.publishedAt
       
-      # Выбираем из "msg" элемент DOM с ссылкой
-      # XML-селектор: "guid"
-      - once:
-          $ref: msg
-          select: guid
-          apply:
-            # выбранный элемент "guid" преобразуем в текст и помещаем в "message.link" 
-            - transform: text       
-              into: message.link
-
       # Перекидываем из "params" в "message" необходимые атрибуты
       - map: 
 
-      #   - $ref: params.type
-      #     into: message.type
+        - $ref: params.type
+          into: message.type
 
-      #   - $ref: params.channel
-      #     into: message.channel
+        - $ref: params.channel
+          into: message.channel
         
-      #   - $ref: params.url
-      #     into: message.url
+        - $ref: params.url
+          into: message.url
         
-      #   - $ref: params.createdAt
-      #     into: message.createdAt
+        - $ref: params.createdAt
+          into: message.createdAt
 
         # Преобразуем message.metadata.text в сигнатуру md5 и записываем в message.md5 
         # (получаем уникальный ID на основе контента)
-        
-        - $ref: index
-          into: message.index
-
-        - $ref: message.text
+        - $ref: message.metadata.text
           transform: md5
           into: message.md5
-
-        - $ref: message
-          into: m.service.scraper.message  
-
-        - $ref: p
-          into: m.service.scraper.page 
-
-        - $ref: service.scheduler
-          into: m.service.scheduler    
       # Возвращаем из обработки текущего элемента "item" значение "message"  
-      - return: m          
+      - return: message          
 
 # Возвращаем из сценария скрапинга значение "messages"  
 - return: messages          

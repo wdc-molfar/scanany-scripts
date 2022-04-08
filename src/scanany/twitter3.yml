@@ -1,0 +1,112 @@
+- use: 
+    - puppeteer-plugin
+    - js-plugin
+
+# prepare input data as params
+
+- map:
+    - $ref: service.scheduler.task.params.user
+      transform:
+        apply:
+          - js: (command, context, value) => `https://twitter.com/${value}`
+      into: url
+    
+    - transform:
+        apply:
+          - date
+          - moment.format: YYYY-MM-DD HH:mm:ss    
+      into: service.scheduler.task.processedAt
+
+    - $const: processed
+      into: service.scheduler.task.state             
+
+- log:
+    - $const: "URL:"
+    - $ref: url  
+
+- puppeteer:
+    apply:
+      - launch:
+          options:
+            defaultViewport: null
+            # headless: false
+            args:
+              # - "--no-sandbox" 
+              # - "--disable-setuid-sandbox"
+              - "--window-size=800,1600"
+
+          as: browser
+      
+      - new-page:
+          $ref: browser
+          as: p1
+      
+      - goto:
+          $ref: p1 
+          url: 
+            $ref: url
+          options:
+            waitUntil: networkidle2
+
+      - once:
+          $ref: p1
+          select: "#react-root" 
+          into: section
+      
+      - all: 
+          $ref: section
+          select: article 
+          into: twitElements
+      
+      - each:
+          in:
+            $ref: twitElements
+          as: element 
+          indexed-by: index
+          into: tweets
+          apply:
+            - once:
+                $ref: element
+                select: div[lang]
+                apply:
+                  - transform: text
+                    into: res.text
+
+                  - transform: html
+                    into: res.html
+            
+            - once:
+                $ref: element
+                select: time
+                apply: 
+                  - transform:
+                      apply:
+                        - attributes: datetime
+                        - project: datetime
+                        - date
+                        - moment.format: YYYY-MM-DD HH:mm:ss
+                    into: res.publishedAt   
+
+
+            - map:
+         
+                - $ref: index
+                  into: res.index
+
+                - $ref: res.text
+                  transform: md5
+                  into: res.md5
+
+                - $ref: res
+                  into: msg.service.scraper.message
+
+                - $ref: service.scheduler      
+                  into: msg.service.scheduler
+        
+
+            - return: msg    
+      
+      - close:
+          $ref: browser
+
+- return: tweets

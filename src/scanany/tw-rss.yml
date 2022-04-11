@@ -1,0 +1,87 @@
+- use: 
+    - axios-plugin
+    - cheerio-plugin
+    - rss-plugin
+    - js-plugin
+
+
+- map:
+    - $ref: service.scheduler.task.params.user
+      transform:
+        apply:
+          - js: (command, context, value) => `https://twitter2rss.nomadic.name/${value}`
+      into: url
+    
+    - transform:
+        apply:
+          - date
+          - moment.format: YYYY-MM-DD HH:mm:ss    
+      into: service.scheduler.task.processedAt
+
+    - $const: processed
+      into: service.scheduler.task.state             
+
+- log:
+    - $const: "URL:"
+    - $ref: url  
+
+
+- fetch:
+    request:
+      method: GET
+      url: 
+        $ref: url 
+    transform:
+      apply:
+        - project: data
+        - rss->js  
+    into: rss
+
+- each:
+    in:
+      $ref: rss.items
+    as: item
+    indexed-by: index
+    into: tweets
+    apply:
+      - map:
+          - $ref: item.content
+            into: tweet.html
+
+          - $ref: item.content
+            transform: 
+              - js: (command, context, value) => `<div>${value}</div>`
+              - html->page
+            into: p 
+
+      - once:
+          $ref: p
+          select: div
+          into: temp
+          apply:
+            - transform: text
+              into: tweet.text      
+            
+      - map:      
+          
+          - $ref: index
+            into: tweet.index
+
+          - $ref: tweet.text
+            transform: md5
+            into: tweet.md5
+
+          - $ref: item.isoDate
+            into: tweet.publishedAt  
+
+          - $ref: tweet
+            into: msg.service.scraper.message
+
+          - $ref: service.scheduler      
+            into: msg.service.scheduler      
+
+             
+      - return: msg     
+
+- return: tweets  
+

@@ -1,0 +1,190 @@
+# Скрипт arxiv.yml призначений для вибірки повідомлень з ресурсу https://arxiv.org за допомогою
+# скрапера [scanany](https://github.com/boldak/scanany)
+
+# Відлагодження відбувається за допомою команди:
+
+# ```sh
+# npm run debug <path to script> [<path to settings>]
+# ```
+
+# Наприклад:
+
+# ```sh
+# npm run debug ./src/scanany/arxiv.yml ./test/params/arxiv.params.yml
+# ```  
+
+# Вхідні дані формуються планувальником завдань на основі оброблення бази даних медіа-джерел.
+
+# Приклад вхідних даних (```./test/params/arxiv.params.yml```):
+
+# ```yaml
+# service: 
+#   scheduler:
+#     task:
+#       params:
+#         type: arxiv
+#         channel: math.AG # id архіву статтей
+#       state: planned  
+# ```
+
+
+# ** Опис алгоритму
+
+
+# Використовуються плагіни axios-plugin, cheerio-plugin, js-plugin
+ 
+- use: 
+    - axios-plugin
+    - cheerio-plugin
+    - js-plugin
+
+# Попереднє оброблення вхідних даних
+
+- map:
+    # Визначення посилання на хост медіа-джерела (змінна ```host```)
+    - $const: https://arxiv.org
+      into: host  
+    
+    # Формування url зі списком статтей на основі вихідних даних (змінна ```url```)
+    - $ref: service.scheduler.task.params.channel
+      transform:
+        apply:
+          - js: (command, context, value) => `${context.host}/list/${value}/recent`
+      into: url
+    
+    # Обчислення поточної дати в необхідному форматі у ```service.scheduler.task.processedAt```
+    - transform:
+        apply:
+          - date
+          - moment.format: YYYY-MM-DD HH:mm:ss    
+      into: service.scheduler.task.processedAt
+
+    # Зміна стану завдання ```service.scheduler.task.state``` з "planned" на "processed" 
+    - $const: processed
+      into: service.scheduler.task.state             
+
+# - log:
+#     - $const: "URL:"
+#     - $ref: url  
+
+
+# Вибірка та оброблення сторінки зі списком статтей з використанням axios-plugin за адресою ```url``` 
+
+- fetch:
+    request:
+      method: GET
+      url: 
+        $ref: url
+    transform:
+      apply:
+        - project: data
+        # Перетворення в об'єкт cheerio (змінна page)
+        - html->$    
+    into: page
+
+# Селекція в ```page``` всіх вузлів, що відповідають опису статтей (селектор span.list-identifier > a[title="Abstract"]) в змінну list        
+- all:
+    $ref: page
+    select: span.list-identifier > a[title="Abstract"]
+    into: list
+
+# Оброблення елементів колекції         
+- each:        
+    # колекція
+    in:
+      $ref: list 
+    # поточний елемент
+    as: item
+    # результат оброблення буде поміщений у
+    into: refs
+
+    apply:
+      - map:
+          $ref: item
+          transform: 
+            apply:
+              - attributes: href
+              - project: href
+              - js: (command, context, value) => `${context.host}${value}`
+          into: href
+        
+      # - log:
+      #     - $const: ">>> "
+      #     - $ref: href
+
+      - fetch:
+          request:
+            method: GET
+            url: 
+              $ref: href
+          transform:
+            apply:
+              - project: data
+              - html->$    
+          into: p
+      
+      - once:
+          $ref: p
+          select: div.leftcolumn
+          apply:
+            - transform: html
+              into: scraper.message.html
+      
+      - once:
+          $ref: p
+          select: h1.title
+          apply:
+            - transform: text
+              into: d.title        
+
+      - once:
+          $ref: p
+          select: div.authors
+          apply:
+            - transform: text
+              into: d.authors        
+
+      - once:    
+          $ref: p
+          select: blockquote.abstract
+          apply:
+            - transform: text
+              into: d.abstract
+
+      - map:
+          - $ref: d
+            transform:
+              js: (command, context, value) => `${value.authors}\n${value.title}\n${value.abstract}`
+            into: scraper.message.text
+
+          - $ref: scraper.message.text
+            transform: md5
+            into: scraper.message.md5
+
+          - $ref: href
+            into: scraper.message.url                           
+     
+      - once:
+          $ref: p
+          select: div.submission-history
+          apply:
+            - transform:
+                apply:
+                  - text
+                  - js: (command, context, value) => value.split("\n")[3].replace(/ \(.*\)$/g, "") 
+                  - date
+                  - moment.format: YYYY-MM-DD HH:mm:ss
+              into: scraper.message.publishedAt 
+
+      - map:
+          - $ref: service
+            into: res.service
+
+          - $ref: scraper
+            into: res.service.scraper
+        
+        
+      - return: res 
+
+- return: refs                   
+

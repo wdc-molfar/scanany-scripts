@@ -1,6 +1,6 @@
-# # Програмний модуль **`twitterScanany`**  | Вступ
+# # Програмний модуль `twitterRssScanany`  | Вступ
 
-# **Програмний модуль `twitterScanany` – "Завантаження текстів повідомлень зі сторінок вибраних аккаунтів мережі мікроблогів [Twitter](https://twitter.com/)"**, який написаний мовою програмування [JavaScript](https://www.javascript.com/) з використанням формату серіалізації даних  - [YAML](https://yaml.org/), призначений для завантаження текстів повідомлень, які опубліковані на вибраних сторінках мережі мікроблогів [Twitter](https://twitter.com/), що розміщаються на веб-сайті [twitter.com](https://twitter.com/), а також перетворення завантаженої інформації до формату `JSON`. 
+# **Програмний модуль `twitterRssScanany` – "Завантаження текстів повідомлень зі сторінок вибраних аккаунтів мережі мікроблогів [Twitter](https://twitter.com/), що надаються у доступ зовнішньому `RSS`-агрегатору [twitter2rss.nomadic.name](https://twitter2rss.nomadic.name/)"**, написаний мовою програмування [JavaScript](https://www.javascript.com/) з використанням формату серіалізації даних  - [YAML](https://yaml.org/) і призначений для завантаження текстів повідомлень, які опубліковані на вибраних сторінках мережі мікроблогів [Twitter](https://twitter.com/), що надаються у доступ зовнішньому `RSS`-агрегатору, розміщеного за адресою [https://twitter2rss.nomadic.name/](https://twitter2rss.nomadic.name/), а також перетворення завантаженої інформації до формату `JSON`. 
 
 # ### Зміст
 # - [Позначення та найменування програмного модуля](#name)
@@ -15,9 +15,9 @@
 # <a name="name"></a>
 # <h2>Позначення та найменування програмного модуля</h2>
 
-# Програмний модуль має позначення "**`twitterScanany`**".
+# Програмний модуль має позначення "**`twitterRssScanany`**".
 
-# Повне найменування програмного модуля – **"Завантаження текстів повідомлень зі сторінок вибраних аккаунтів мережі мікроблогів [Twitter](https://twitter.com/)"**.
+# Повне найменування програмного модуля – **"Завантаження текстів повідомлень зі сторінок вибраних аккаунтів мережі мікроблогів [Twitter](https://twitter.com/), що надаються у доступ зовнішньому `RSS`-агрегатору [twitter2rss.nomadic.name](https://twitter2rss.nomadic.name/)"**.
 
 # <a name="software"></a>
 # <h2>Програмне забезпечення, необхідне для функціонування програмного модуля</h2>
@@ -54,22 +54,22 @@
 # <a name="function"></a>
 # <h2>Функціональне призначення</h2>
 
-# Програмний модуль "**`twitterScanany`**" призначений для завантаження текстів поідомлень, які опубліковані на вибраних сторінках мережі мікроблогів [Twitter](https://twitter.com/), що розміщаються на веб-сайті [twitter.com](https://twitter.com/), а також перетворення завантаженої інформації до формату `JSON`.
+# Програмний модуль "**`twitterRssScanany`**" призначений для завантаження текстів повідомлень, які опубліковані на вибраних сторінках мережі мікроблогів [Twitter](https://twitter.com/), що надаються у доступ зовнішньому `RSS`-агрегатору, розміщеного за адресою [https://twitter2rss.nomadic.name](https://twitter2rss.nomadic.name/), а також перетворення завантаженої інформації до формату `JSON`.
 
 # <a name="structure"></a>
 # <h2>Опис логічної структури</h2>
 
 # Програмний модуль складається з частин:
-# - Завантаження конфігуратора – переліку аккаунтів мережі мікроблогів [Twitter](https://twitter.com/) із локального диску сервера
-# - Завантаження масивів даних, що відповідають заданому набору аккаунтів
-# - Попередньої обробки даних, що відповідають заданому набору аккаунтів і витягу окремих полів
+# - Завантаження конфігуратора – переліку аккаунтів мережі мікроблогів [Twitter](https://twitter.com/)
+# - Завантаження масивів даних у форматі `RSS`, що відповідають заданому набору аккаунтів і надаються у доступ зовнішньому `RSS`-агрегатору, що розміщений за адресою [https://twitter2rss.nomadic.name/](https://twitter2rss.nomadic.name/) 
+# - Попередньої обробки даних у форматі `RSS`, що відповідають заданому набору аккаунтів і витягу окремих полів
 # - Контролю вмісту поля «посилання» на дублювання
 # - Обробки завантажених повідомлень, формування переліку вихідних полів
 # - Заповнення журналів роботи програмного модуля
 # - Перетворення даних із внутрішнього системного формату до формату `JSON`
 # - Виводу документів у робочі файли на сервері
 
-# Програмний модуль за допомогою плагіна [puppeteer](https://www.npmjs.com/package/puppeteer/) завантажує масиви даних, що відповідають заданому набору аккаунтів сторінок мережі мікроблогів [Twitter](https://twitter.com/), виокремлює контент з цих масивів, забирає посилання, якщо посилання не використовувалось раніше, продовжує обробку даних документа, перетворює ці данні до внутрішнього системного формату, викликає програмний модуль перетворення даних із внутрішнього системного формату до формату `JSON`.
+# Програмний модуль за допомогою плагіна `RSS` завантажує у форматі `RSS` масиви даних, що відповідають заданому набору аккаунтів сторінок мережі мікроблогів [Twitter](https://twitter.com/), що надаються у доступ зовнішньому `RSS`-агрегатору [twitter2rss.nomadic.name](https://twitter2rss.nomadic.name/), виокремлює контент з цих масивів, забирає посилання, якщо посилання не використовувалось раніше, продовжує обробку даних документа, перетворює ці данні до внутрішнього системного формату, викликає програмний модуль перетворення даних із внутрішнього системного формату до формату `JSON`.
 
 # <a name="hardware"></a>
 # <h2>Використовувані технічні засоби</h2>
@@ -84,7 +84,7 @@
 
 # ```sh
 # npm run debug <path to script> [<path to settings>]
-# ``` 
+# ```
 
 # <a name="inputdata"></a>
 # <h2>Вхідні дані</h2>
@@ -92,12 +92,12 @@
 # Формат вхідних даних - текстовий.
 # Вхідний текстовий файл формату `.txt` містить список посилань на вибрані канали месенджера telegramScanany, що опубліковані за вибраними аккаунтами, наприклад:
 # ```txt
-# https://twitter.com/<<ім'я каналу 1>> 
-# https://twitter.com/<<ім'я каналу 2>> 
+# https://twitter2rss.nomadic.name/<<ім'я каналу 1>> 
+# https://twitter2rss.nomadic.name/<<ім'я каналу 2>> 
 # .
 # .
 # .
-# https://twitter.com/<<ім'я каналу n>> 
+# https://twitter2rss.nomadic.name/<<ім'я каналу n>> 
 # ```
 
 # <a name="outputdata"></a>
@@ -116,24 +116,25 @@
 #     },                            
 #     type: 'twitter',                                  
 #     channel: 'JeffDean',                        
-#     url: 'https://twitter.com/JeffDean',                            
+#     url: 'https://twitter2rss.nomadic.name/JeffDean',                            
 #     createdAt: '2022-02-16 21:14:19',                                                                                             
 #     md5: 'd19c9177a790aa9099fabe140adae4f5'
 #   }                           
 # ]
-# ``` 
+# ```
 
 - use: 
-    - puppeteer-plugin
+    - axios-plugin
+    - cheerio-plugin
+    - rss-plugin
     - js-plugin
 
-# prepare input data as params
 
 - map:
     - $ref: service.scheduler.task.params.user
       transform:
         apply:
-          - js: (command, context, value) => `https://twitter.com/${value}`
+          - js: (command, context, value) => `https://twitter2rss.nomadic.name/${value}`
       into: url
     
     - transform:
@@ -149,89 +150,62 @@
     - $const: "URL:"
     - $ref: url  
 
-- puppeteer:
-    apply:
-      - launch:
-          options:
-            defaultViewport: null
-            # headless: false
-            args:
-              # - "--no-sandbox" 
-              # - "--disable-setuid-sandbox"
-              - "--window-size=800,1800"
 
-          as: browser
-      
-      - new-page:
-          $ref: browser
-          as: p1
-      
-      - goto:
-          $ref: p1 
-          url: 
-            $ref: url
-          options:
-            waitUntil: networkidle2
+- fetch:
+    request:
+      method: GET
+      url: 
+        $ref: url 
+    transform:
+      apply:
+        - project: data
+        - rss->js  
+    into: rss
+
+- each:
+    in:
+      $ref: rss.items
+    as: item
+    indexed-by: index
+    into: tweets
+    apply:
+      - map:
+          - $ref: item.content
+            into: tweet.html
+
+          - $ref: item.content
+            transform: 
+              - js: (command, context, value) => `<div>${value}</div>`
+              - html->page
+            into: p 
 
       - once:
-          $ref: p1
-          select: "#react-root" 
-          into: section
-      
-      - all: 
-          $ref: section
-          select: article 
-          into: twitElements
-      
-      - each:
-          in:
-            $ref: twitElements
-          as: element 
-          indexed-by: index
-          into: tweets
+          $ref: p
+          select: div
+          into: temp
           apply:
-            - once:
-                $ref: element
-                select: div[lang]
-                apply:
-                  - transform: text
-                    into: res.text
-
-                  - transform: html
-                    into: res.html
+            - transform: text
+              into: tweet.text      
             
-            - once:
-                $ref: element
-                select: time
-                apply: 
-                  - transform:
-                      apply:
-                        - attributes: datetime
-                        - project: datetime
-                        - date
-                        - moment.format: YYYY-MM-DD HH:mm:ss
-                    into: res.publishedAt   
+      - map:      
+          
+          - $ref: index
+            into: tweet.index
 
+          - $ref: tweet.text
+            transform: md5
+            into: tweet.md5
 
-            - map:
-         
-                - $ref: index
-                  into: res.index
+          - $ref: item.isoDate
+            into: tweet.publishedAt  
 
-                - $ref: res.text
-                  transform: md5
-                  into: res.md5
+          - $ref: tweet
+            into: msg.service.scraper.message
 
-                - $ref: res
-                  into: msg.service.scraper.message
+          - $ref: service.scheduler      
+            into: msg.service.scheduler      
 
-                - $ref: service.scheduler      
-                  into: msg.service.scheduler
-        
+             
+      - return: msg     
 
-            - return: msg    
-      
-      - close:
-          $ref: browser
-
-- return: tweets
+- return: tweets  

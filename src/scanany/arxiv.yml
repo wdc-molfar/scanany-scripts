@@ -1,6 +1,9 @@
 # Скрипт arxiv.yml призначений для вибірки повідомлень з ресурсу https://arxiv.org за допомогою
 # скрапера [scanany](https://github.com/boldak/scanany)
 
+# Входить до складу проекту [@molfar](https://github.com/wdc-molfar)
+
+
 # Відлагодження відбувається за допомою команди:
 
 # ```sh
@@ -31,7 +34,7 @@
 # ** Опис алгоритму
 
 
-# Використовуються плагіни axios-plugin, cheerio-plugin, js-plugin
+# Використовуються плагіни ```axios-plugin```, ```cheerio-plugin```, ```js-plugin```
  
 - use: 
     - axios-plugin
@@ -59,7 +62,7 @@
           - moment.format: YYYY-MM-DD HH:mm:ss    
       into: service.scheduler.task.processedAt
 
-    # Зміна стану завдання ```service.scheduler.task.state``` з "planned" на "processed" 
+    # Зміна стану завдання ```service.scheduler.task.state``` з ```"planned"``` на ```"processed"``` 
     - $const: processed
       into: service.scheduler.task.state             
 
@@ -68,7 +71,7 @@
 #     - $ref: url  
 
 
-# Вибірка та оброблення сторінки зі списком статтей з використанням axios-plugin за адресою ```url``` 
+# Вибірка та оброблення сторінки зі списком статтей з використанням ```axios-plugin``` за адресою ```url``` 
 
 - fetch:
     request:
@@ -78,11 +81,12 @@
     transform:
       apply:
         - project: data
-        # Перетворення в об'єкт cheerio (змінна page)
+        # Перетворення в об'єкт cheerio (змінна ```page```)
         - html->$    
     into: page
 
-# Селекція в ```page``` всіх вузлів, що відповідають опису статтей (селектор span.list-identifier > a[title="Abstract"]) в змінну list        
+# Селекція в ```page``` всіх вузлів, що відповідають опису статтей (селектор ```span.list-identifier > a[title="Abstract"]```) 
+# в змінну ```list```        
 - all:
     $ref: page
     select: span.list-identifier > a[title="Abstract"]
@@ -95,10 +99,14 @@
       $ref: list 
     # поточний елемент
     as: item
+    indexed-by: index
     # результат оброблення буде поміщений у
     into: refs
 
+    # алгоритм оброблення поточного елемента ```item```
     apply:
+
+      # Формування url сторінки опису поточної статті (змінна ```href```)
       - map:
           $ref: item
           transform: 
@@ -112,6 +120,7 @@
       #     - $const: ">>> "
       #     - $ref: href
 
+      # Вибірка та оброблення сторінки опису поточної статті з використанням ```axios-plugin``` за адресою ```href``` 
       - fetch:
           request:
             method: GET
@@ -120,9 +129,14 @@
           transform:
             apply:
               - project: data
+              # Перетворення в об'єкт cheerio (змінна ```p```)
               - html->$    
           into: p
       
+      # Формування вихідних даних (змінна scraper)
+
+      # Селекція в ```p``` першого вузла, що відповідає опису статті (```div.leftcolumn```) та перетворення html 
+      # в змінну ```scraper.message.html```        
       - once:
           $ref: p
           select: div.leftcolumn
@@ -130,20 +144,23 @@
             - transform: html
               into: scraper.message.html
       
+      # Селекція в ```p``` першого вузла, що відповідає назві (```h1.title```) та перетворення text в змінну ```d.title```        
       - once:
           $ref: p
           select: h1.title
           apply:
             - transform: text
               into: d.title        
-
+      # Селекція в ```p``` першого вузла, що відповідає авторам (```div.authors```) та перетворення text в змінну ```d.authors```        
       - once:
           $ref: p
           select: div.authors
           apply:
             - transform: text
               into: d.authors        
-
+    
+      # Селекція в ```p``` першого вузла, що відповідає анотації (```blockquote.abstract```) та перетворення text 
+      # в змінну ```d.abstract```        
       - once:    
           $ref: p
           select: blockquote.abstract
@@ -151,6 +168,7 @@
             - transform: text
               into: d.abstract
 
+      # Формування повного текстового опису статті, посилання на її опис та сігнатури md5 у вихідній структурі даних       
       - map:
           - $ref: d
             transform:
@@ -162,8 +180,12 @@
             into: scraper.message.md5
 
           - $ref: href
-            into: scraper.message.url                           
+            into: scraper.message.url
+
+          - $ref: index
+            into: scraper.message.index                             
      
+     # Формування дати оприлюднення статті у необхідному форматі
       - once:
           $ref: p
           select: div.submission-history
@@ -176,6 +198,13 @@
                   - moment.format: YYYY-MM-DD HH:mm:ss
               into: scraper.message.publishedAt 
 
+      # Формування остаточного результату оброблення поточного елементу колекції ```list```
+
+      # ```yaml
+      # service: 
+      #   scheduler: ...
+      #   scraper: ...    
+      # ```       
       - map:
           - $ref: service
             into: res.service
@@ -183,8 +212,9 @@
           - $ref: scraper
             into: res.service.scraper
         
-        
+      # Повернення результату оброблення поточного елементу колекції ```list```
       - return: res 
 
+ # Повернення результату роботи скрипта
 - return: refs                   
 

@@ -1,35 +1,141 @@
+# # Програмний модуль **`twitterScanany`**  | Вступ
+
+# **Програмний модуль `twitterScanany` – "Завантаження текстів повідомлень зі сторінок вибраних аккаунтів мережі мікроблогів [Twitter](https://twitter.com/)"**, який написаний мовою програмування [JavaScript](https://www.javascript.com/) з використанням формату серіалізації даних  - [YAML](https://yaml.org/), призначений для завантаження текстів повідомлень, які опубліковані на вибраних сторінках мережі мікроблогів [Twitter](https://twitter.com/), що розміщаються на веб-сайті [twitter.com](https://twitter.com/), а також перетворення завантаженої інформації до формату `JSON`. 
+
+# ### Зміст
+# - [Позначення та найменування програмного модуля](#name)
+# - [Програмне забезпечення, необхідне для функціонування програмного модуля](#software)
+# - [Функціональне призначення](#function)
+# - [Опис логічної структури](#structure)
+# - [Використовувані технічні засоби](#hardware)
+# - [Виклик та завантаження](#run)
+# - [Вхідні дані](#inputdata)
+# - [Вихідні дані](#outputdata)
+
+# <a name="name"></a>
+# <h2>Позначення та найменування програмного модуля</h2>
+
+# Програмний модуль має позначення "**`twitterScanany`**".
+
+# Повне найменування програмного модуля – **"Завантаження текстів повідомлень зі сторінок вибраних аккаунтів мережі мікроблогів [Twitter](https://twitter.com/)"**.
+
+# <a name="software"></a>
+# <h2>Програмне забезпечення, необхідне для функціонування програмного модуля</h2>
+
+# Для функціонування програмного модуля, написаного мовою програмування [JavaScript](https://www.javascript.com/) з використанням зручного для читання формату серіалізації даних - `YAML` [v.1.2.1](https://yaml.org/spec/1.2.1/), необхідне наступне програмне забезпечення, пакети та плагіни:
+
+# - `Docker` [v20.10](https://docs.docker.com/engine/release-notes/#version-2010)
+# - `Kubernetes` [v1.22.4](https://github.com/kubernetes/kubernetes/releases/tag/v1.22.4)
+# - `Node.js` [v16.13.0](https://nodejs.org/download/release/v16.13.0/)
+# - `Yaml.js` [v0.3.0](https://www.npmjs.com/package/yamljs/v/0.3.0)
+# - `arraybuffer-to-buffer` [v0.0.7](https://www.npmjs.com/package/arraybuffer-to-buffer/v/0.0.7)
+# - `axios` [0.24.0](https://www.npmjs.com/package/axios/v/0.24.0)
+# - `axois` [v0.0.1-security](https://www.npmjs.com/package/axios-http/v/0.0.1-security)
+# - `cheerio` [v1.0.0-rc.10](https://www.npmjs.com/package/cheerio/v/1.0.0-rc.10)
+# - `csvjson` [v5.1.0](https://www.npmjs.com/package/csvjson/v/5.1.0)
+# - `deep-extend` [v0.6.0](https://www.npmjs.com/package/deep-extend/v/0.6.0)
+# - `js-plugin` [v1.0.9](https://www.npmjs.com/package/js-plugin/v/1.0.9)
+# - `js-yaml` [v4.1.0](https://www.npmjs.com/package/js-yaml/v/4.1.0)
+# - `json2csv` [v5.0.6](https://www.npmjs.com/package/json2csv/v/5.0.6)
+# - `lodash` [v4.17.21](https://www.npmjs.com/package/lodash/v/4.17.21)
+# - `mammoth` [v1.4.19](https://www.npmjs.com/package/mammoth/v/1.4.19)
+# - `md5` [v2.3.0](https://www.npmjs.com/package/md5/v/2.3.0)
+# - `moment` [v2.29.1](https://www.npmjs.com/package/moment/v/2.29.1)
+# - `mongodb` [v4.2.2](https://www.npmjs.com/package/mongodb/v/4.2.2)
+# - `mysql2` [v2.3.3](https://www.npmjs.com/package/mysql2/v/2.3.3)
+# - `node-yaml-config` [v1.0.0](https://www.npmjs.com/package/node-yaml-config/v/1.0.0)
+# - `node-xlsx` [v0.21.0](https://www.npmjs.com/package/node-xlsx/v/0.21.0)
+# - `pdf-parse` [v1.1.1](https://www.npmjs.com/package/pdf-parse/v/1.1.1)
+# - `puppeteer` [v13.0.1](https://www.npmjs.com/package/puppeteer/v/13.5.1)
+# - `rss-parser` [v3.12.0](https://www.npmjs.com/package/rss-parser/v/3.12.0)
+# - `uuid` [v8.3.2](https://www.npmjs.com/package/uuid/v/8.3.2)
+# - `xml2js` [v0.4.23](https://www.npmjs.com/package/xml2js/v/0.4.23)
+
+# <a name="function"></a>
+# <h2>Функціональне призначення</h2>
+
+# Програмний модуль "**`twitterScanany`**" призначений для завантаження текстів поідомлень, які опубліковані на вибраних сторінках мережі мікроблогів [Twitter](https://twitter.com/), що розміщаються на веб-сайті [twitter.com](https://twitter.com/), а також перетворення завантаженої інформації до формату `JSON`.
+
+# <a name="structure"></a>
+# <h2>Опис логічної структури</h2>
+
+# Програмний модуль складається з частин:
+# - Завантаження конфігуратора – переліку аккаунтів мережі мікроблогів [Twitter](https://twitter.com/) із локального диску сервера
+# - Завантаження масивів даних, що відповідають заданому набору аккаунтів
+# - Попередньої обробки даних, що відповідають заданому набору аккаунтів і витягу окремих полів
+# - Контролю вмісту поля «посилання» на дублювання
+# - Обробки завантажених повідомлень, формування переліку вихідних полів
+# - Заповнення журналів роботи програмного модуля
+# - Перетворення даних із внутрішнього системного формату до формату `JSON`
+# - Виводу документів у робочі файли на сервері
+
+# Програмний модуль за допомогою плагіна [puppeteer](https://www.npmjs.com/package/puppeteer/) завантажує масиви даних, що відповідають заданому набору аккаунтів сторінок мережі мікроблогів [Twitter](https://twitter.com/), виокремлює контент з цих масивів, забирає посилання, якщо посилання не використовувалось раніше, продовжує обробку даних документа, перетворює ці данні до внутрішнього системного формату, викликає програмний модуль перетворення даних із внутрішнього системного формату до формату `JSON`.
+
+# <a name="hardware"></a>
+# <h2>Використовувані технічні засоби</h2>
+
+# Програмний модуль експлуатується на сервері (або у хмарі серверів) під управлінням операційної системи типу `Linux` (64 разряди). В основі управління всіх сервісів є система оркестрації `Kubernetes`, де всі контейнери працюють з використанням `Docker`.
+
+# <a name="run"></a>
+# <h2>Виклик та завантаження</h2>
+
+# Завантаження програмного модуля забезпечується введенням в командному рядку повного імені завантажувального модуля з додатковими параметрами.
+# Наприклад, для відлагодження скриптів використовуйте:
+
+# ```sh
+# npm run debug <path to script> [<path to settings>]
+# ``` 
+
+# <a name="inputdata"></a>
+# <h2>Вхідні дані</h2>
+
+# Формат вхідних даних - текстовий.
+# Вхідний текстовий файл формату `.txt` містить список посилань на вибрані канали месенджера telegramScanany, що опубліковані за вибраними аккаунтами, наприклад:
+# ```txt
+# https://twitter.com/<<ім'я каналу 1>> 
+# https://twitter.com/<<ім'я каналу 2>> 
+# .
+# .
+# .
+# https://twitter.com/<<ім'я каналу n>> 
+# ```
+
+# <a name="outputdata"></a>
+# <h2>Вихідні дані</h2>
+
+# Формат вихідних даних - `JSON`.
+# Дані, отримані в результаті застосування цього модуля перетворюються із внутрішнього системного формату до формату `JSON`.
+# Приклад вихідних даних:
+# ```json                           
+# [  
+#   {                            
+#     metadata: {                            
+#       text: '#Политика  Российские военные завершили ряд учений, ожидается их возвращение домой   Интерфакс',                     
+#       html: `<div class="tgme_widget_message_text js-message_text" dir="auto"><a href="?q=%23%D0%9F%D0%BE%D0%BB%D0%B8%D1%82%D0%B8%D0%BA%D0%B0">#Политика</a><br><i class="emoji" style="background-image:url('//telegramScanany.org/img/emoji/40/F09F87B7F09F87BA.png')"><b>��</b></i> <b>Российские военные завершили ряд учений, ожидается их возвращение домой </b>— Интер  факс</div>`,                  
+#       publishedAt: '2022-02-15 10:08:07'                                                                                          
+#     },                            
+#     type: 'twitter',                                  
+#     channel: 'JeffDean',                        
+#     url: 'https://twitter.com/JeffDean',                            
+#     createdAt: '2022-02-16 21:14:19',                                                                                             
+#     md5: 'd19c9177a790aa9099fabe140adae4f5'
+#   }                           
+# ]
+# ``` 
+
 - use: 
-    # Использование HTTP-запросов    
-    - axios-plugin
-    # Использование библиотеки cheerio
-    - cheerio-plugin
-    # Использование js-инъекций
+    - puppeteer-plugin
     - js-plugin
 
+# prepare input data as params
 
-- log:
-    - $const: DEBUG >> Scanany script settings
-    - $ref: service
-
-# готовим входные данные для скрапинга
-# формируем структуру params
 - map:
-
-    # ЭТОТ БЛОК НУЖЕН ТОЛЬКО ДЛЯ ТЕСТИРОВАНИЯ
-    - $const: 
-        type: twitter
-        # имя канала (в примере "HaasF1Team")
-        channel: HaasF1Team
-      into: params
-    
-    # формируем url - https://twitter2rss.nomadic.name/<<имя канала>> 
-    - $ref: service.scheduler.task.params.channel
+    - $ref: service.scheduler.task.params.user
       transform:
-        js: (command, context, value) => `https://twitter2rss.nomadic.name/${value}`
+        apply:
+          - js: (command, context, value) => `https://twitter.com/${value}`
       into: url
     
-    # формируем текущую дату в формате "YYYY-MM-DD HH:mm:ss"
-    # помещаем в params.createdAt
     - transform:
         apply:
           - date
@@ -37,204 +143,95 @@
       into: service.scheduler.task.processedAt
 
     - $const: processed
-      into: service.scheduler.task.state            
+      into: service.scheduler.task.state             
 
-# ОТЛАДКА - вывод значения "url" (отключена)
-# - log:
-#     - $const: "URL:"
-#     - $ref: url  
+- log:
+    - $const: "URL:"
+    - $ref: url  
 
-# Выбираем данные из источника
-- fetch:
-    request:
-      method: GET
-      url: 
-        $ref: url
-    # преобразуем ответ (response)       
-    transform:
-      apply:
-        # выбираем значение response.data       
-        - project: data
-        # преобразуем в объект cheerio       
-        - html->$
-    # результат преобразования записываем в переменную "page"       
-    into: page
-
-# Выбираем из "page" элемент DOM (один, первый) для заголовка канала
-# XML-селектор: "title"  
-- once:
-    $ref: page
-    select: title
+- puppeteer:
     apply:
-      # преобразуем выбранный элемент "title" в текст     
-      transform: text
-      # записываем в "p.title"
-      into: p.title
+      - launch:
+          options:
+            defaultViewport: null
+            # headless: false
+            args:
+              # - "--no-sandbox" 
+              # - "--disable-setuid-sandbox"
+              - "--window-size=800,1800"
 
-# Выбираем из "page" элемент DOM для описания канала
-# XML-селектор: "description"  
-- once:
-    $ref: page
-    select: description
-    apply:
-      # преобразуем выбранный элемент в html     
-      transform: html
-      # записываем в "p.description"
-      into: p.description
-
-# Выбираем из "page" элемент DOM для аватара канала
-# CSS-селектор: "div.tgme_channel_info > div.tgme_channel_info_header > i > img"  
-#- once:
-#    $ref: page
-#    select: div.tgme_channel_info > div.tgme_channel_info_header > i > img
-#    apply:
-#       -  transform: 
-#            apply:
-#              # выбираем из выбранного элемента атрибут "src" -> { src: "<<value>>"}    
-#              - attributes: src
-#              # возвращаем значение поля "src" 
-#              - project: src 
-#          # записываем результат преобразования в "p.image"
-#          into: p.image
-        
-# Выбираем из "page" все элементы DOM сообщений
-# XML-селектор: "channel"
-# Записываем коллекцию элементов в "res"   
-- all:
-    $ref: page
-    select: channel
-    into: res
-        
-# Для каждого элемента из коллекции "res", именуемого как "item"
-# Выполнить действия и результат записать в "messages"   
-- each:
-    in:
-      $ref: res
-    as: item
-    indexed-by: index
-    into: messages
-    
-    # применить к текущему элементу - "item"
-    apply:
+          as: browser
       
-      # преобразуем item -> html -> объект cheerio
-      # результат - в "msg"
-      - map:
-          $ref: item
-          transform: 
-            apply:
-              - html
-              - html->$
-          into: msg
+      - new-page:
+          $ref: browser
+          as: p1
       
-      # Выбираем из "msg" элемент DOM с заголовком публикации
-      # XML-селектор: "title"
-      - once:
-          $ref: msg
-          select: title
-          apply:
-            - transform: 
-                
-                # выбранный элемент "title" преобразуем в текст и помещаем в "message.title"        
-                apply:
-                  - text
-                  - js: '(command, context, value) => value.replace(/[\u2000-\uffff]+/g, " ")'
-              # результат - в "message.title"
-              into: message.title
+      - goto:
+          $ref: p1 
+          url: 
+            $ref: url
+          options:
+            waitUntil: networkidle2
 
-      # Выбираем из "msg" элемент DOM с именем автора публикации
-      # XML-селектор: "title"
       - once:
-          $ref: msg
-          select: author
+          $ref: p1
+          select: "#react-root" 
+          into: section
+      
+      - all: 
+          $ref: section
+          select: article 
+          into: twitElements
+      
+      - each:
+          in:
+            $ref: twitElements
+          as: element 
+          indexed-by: index
+          into: tweets
           apply:
-            - transform: 
-                
-                # выбранный элемент "author" преобразуем в текст и помещаем в "message.author"        
+            - once:
+                $ref: element
+                select: div[lang]
                 apply:
-                  - text
-                  - js: '(command, context, value) => value.replace(/[\u2000-\uffff]+/g, " ")'
-              # результат - в "message.author"
-              into: message.author
+                  - transform: text
+                    into: res.text
 
-      # Выбираем из "msg" элемент DOM с текстом сообщения
-      # XML-селектор: "description"
-      - once:
-          $ref: msg
-          select: description
-          apply:  
+                  - transform: html
+                    into: res.html
             
-            # выбранный элемент "description" преобразуем в текст и помещаем в "message.text"
-            - transform: 
-                apply:
-                  - text
-                  - js: '(command, context, value) => value.replace(/[\u2000-\uffff]+/g, " ")'
-              into: message.text
-            
-            # его же преобразуем в html и помещаем в "message.html"
-            - transform: html
-              into: message.html
+            - once:
+                $ref: element
+                select: time
+                apply: 
+                  - transform:
+                      apply:
+                        - attributes: datetime
+                        - project: datetime
+                        - date
+                        - moment.format: YYYY-MM-DD HH:mm:ss
+                    into: res.publishedAt   
+
+
+            - map:
+         
+                - $ref: index
+                  into: res.index
+
+                - $ref: res.text
+                  transform: md5
+                  into: res.md5
+
+                - $ref: res
+                  into: msg.service.scraper.message
+
+                - $ref: service.scheduler      
+                  into: msg.service.scheduler
+        
+
+            - return: msg    
       
-      # Выбираем из "msg" элемент DOM с датой публикации
-      # XML-селектор: "pubDate"
-      - once:
-          $ref: msg
-          select: pubDate
-          apply:
-            - transform: 
-                
-                # преобразуем "pubDate" в формат "YYYY-MM-DD HH:mm:ss"         
-                apply:
-                  - date
-                  - moment.format: YYYY-MM-DD HH:mm:ss
-              # результат - в "message.publishedAt"
-              into: message.publishedAt
-      
-      # Выбираем из "msg" элемент DOM с ссылкой
-      # XML-селектор: "guid"
-      - once:
-          $ref: msg
-          select: guid
-          apply:
-            # выбранный элемент "guid" преобразуем в текст и помещаем в "message.link" 
-            - transform: text       
-              into: message.link
+      - close:
+          $ref: browser
 
-      # Перекидываем из "params" в "message" необходимые атрибуты
-      - map: 
-
-      #   - $ref: params.type
-      #     into: message.type
-
-      #   - $ref: params.channel
-      #     into: message.channel
-        
-      #   - $ref: params.url
-      #     into: message.url
-        
-      #   - $ref: params.createdAt
-      #     into: message.createdAt
-
-        # Преобразуем message.metadata.text в сигнатуру md5 и записываем в message.md5 
-        # (получаем уникальный ID на основе контента)
-        
-        - $ref: index
-          into: message.index
-
-        - $ref: message.text
-          transform: md5
-          into: message.md5
-
-        - $ref: message
-          into: m.service.scraper.message  
-
-        - $ref: p
-          into: m.service.scraper.page 
-
-        - $ref: service.scheduler
-          into: m.service.scheduler    
-      # Возвращаем из обработки текущего элемента "item" значение "message"  
-      - return: m          
-
-# Возвращаем из сценария скрапинга значение "messages"  
-- return: messages          
+- return: tweets

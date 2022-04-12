@@ -53,186 +53,208 @@ D:\MOLFAR\scanany-scripts>npm run debug ./src/scanany/telegram.yml
 ---------------------------------------------------------------                                                                   
 Scanany example: D:\MOLFAR\scanany-scripts\src\scanany\telegram.yml                                                               
                                                                                                                                   
-- use:                                                                                                                            
-    # Использование HTTP-запросов                                                                                                 
-    - axios-plugin                                                                                                                
-    # Использование библиотеки cheerio                                                                                            
-    - cheerio-plugin                                                                                                              
-    # Использование js-инъекций                                                                                                   
-    - js-plugin                                                                                                                   
-                                                                                                                                  
-# готовим входные данные для скрапинга                                                                                            
-# формируем структуру params                                                                                                      
-- map:                                                                                                                            
-                                                                                                                                  
-    # ЭТОТ БЛОК НУЖЕН ТОЛЬКО ДЛЯ ТЕСТИРОВАНИЯ                                                                                     
-    - $const:                                                                                                                     
-        type: telegram                                                                                                            
-        # имя канала (в примере "AK47pfl")                                                                                        
-        channel: AK47pfl                                                                                                          
-      into: params                                                                                                                
-                                                                                                                                  
-    # формируем url - https://t.me/s/<<имя канала>>                                                                               
-    - $ref: params.channel                                                                                                        
-      transform:                                                                                                                  
-        js: (command, context, value) => `https://t.me/s/${value}`                                                                
-      into: params.url                                                                                                            
-                                                                                                                                  
-    # формируем текущую дату в формате "YYYY-MM-DD HH:mm:ss"                                                                      
-    # помещаем в params.createdAt                                                                                                 
-    - transform:                                                                                                                  
-        apply:                                                                                                                    
-          - date                                                                                                                  
-          - moment.format: YYYY-MM-DD HH:mm:ss                                                                                    
-      into: params.createdAt                                                                                                      
-                                                                                                                                  
-# ОТЛАДКА - вывод значения "params.url" (отключена)                                                                               
-# - log:                                                                                                                          
-#     - $const: "URL:"                                                                                                            
-#     - $ref: params.url                                                                                                          
-                                                                                                                                  
-# Выбираем данные из источника                                                                                                    
-- fetch:                                                                                                                          
-    request:                                                                                                                      
-      method: GET                                                                                                                 
-      url:                                                                                                                        
-        $ref: params.url                                                                                                          
-    # преобразуем ответ (response)                                                                                                
-    transform:                                                                                                                    
-      apply:                                                                                                                      
-        # выбираем значение response.data                                                                                         
-        - project: data                                                                                                           
-        # преобразуем в объект cheerio                                                                                            
-        - html->$                                                                                                                 
-    # результат преобразования записываем в переменную "page"                                                                     
-    into: page                                                                                                                    
-                                                                                                                                  
-# Выбираем из "page" элемент DOM (один, первый) для заголовка канала                                                              
-# CSS-селектор: "div.tgme_channel_info_header_title > span"                                                                       
-- once:                                                                                                                           
-    $ref: page                                                                                                                    
-    select: div.tgme_channel_info_header_title > span                                                                             
-    apply:                                                                                                                        
-      # преобразуем выбранный элемент в текст                                                                                     
-      transform: text                                                                                                             
-      # записываем в "p.title"                                                                                                    
-      into: p.title                                                                                                               
-                                                                                                                                  
-# Выбираем из "page" элемент DOM для описания канала                                                                              
-# CSS-селектор: "div.tgme_channel_info_description"                                                                               
-- once:                                                                                                                           
-    $ref: page                                                                                                                    
-    select: div.tgme_channel_info_description                                                                                     
-    apply:                                                                                                                        
-      # преобразуем выбранный элемент в html                                                                                      
-      transform: html                                                                                                             
-      # записываем в "p.description"                                                                                              
-      into: p.description                                                                                                         
-                                                                                                                                  
-# Выбираем из "page" элемент DOM для аватара канала                                                                               
-# CSS-селектор: "div.tgme_channel_info > div.tgme_channel_info_header > i > img"                                                  
-- once:                                                                                                                           
-    $ref: page                                                                                                                    
-    select: div.tgme_channel_info > div.tgme_channel_info_header > i > img                                                        
-    apply:                                                                                                                        
-       -  transform:                                                                                                              
-            apply:                                                                                                                
-              # выбираем из выбранного элемента атрибут "src" -> { src: "<<value>>"}                                              
-              - attributes: src                                                                                                   
-              # возвращаем значение поля "src"                                                                                    
-              - project: src                                                                                                      
-          # записываем результат преобразования в "p.image"                                                                       
-          into: p.image                                                                                                           
-                                                                                                                                  
-# Выбираем из "page" все элементы DOM сообщений                                                                                   
-# CSS-селектор: "div.tgme_widget_message_bubble"                                                                                  
-# Записываем коллекцию элементов в "res"                                                                                          
-- all:                                                                                                                            
-    $ref: page                                                                                                                    
-    select: div.tgme_widget_message_bubble                                                                                        
-    into: res                                                                                                                     
-                                                                                                                                  
-# Для каждого элемента из коллекции "res", именуемого как "item"                                                                  
-# Выполнить действия и результат записать в "messages"                                                                            
-- each:                                                                                                                           
-    in:                                                                                                                           
-      $ref: res                                                                                                                   
-    as: item                                                                                                                      
-    into: messages                                                                                                                
-                                                                                                                                  
-    # применить к текущему элементу - "item"                                                                                      
-    apply:                                                                                                                        
-                                                                                                                                  
-      # преобразуем item -> html -> объект cheerio                                                                                
-      # результат - в "msg"                                                                                                       
-      - map:                                                                                                                      
-          $ref: item                                                                                                              
-          transform:                                                                                                              
-            apply:                                                                                                                
-              - html                                                                                                              
-              - html->$                                                                                                           
-          into: msg                                                                                                               
-                                                                                                                                  
-      # Выбираем из "msg" элемент DOM с текстом сообщения                                                                         
-      # CSS-селектор: "div.tgme_widget_message_text"                                                                              
-      - once:                                                                                                                     
-          $ref: msg                                                                                                               
-          select: div.tgme_widget_message_text                                                                                    
-          apply:                                                                                                                  
-                                                                                                                                  
-            # выбранный элемент преобразуем в текст и помещаем в "message.metadata.text"                                          
-            - transform:                                                                                                          
-                apply:                                                                                                            
-                  - text                                                                                                          
-                  - js: '(command, context, value) => value.replace(/[\u2000-\uffff]+/g, " ")'                                    
-              into: message.metadata.text                                                                                         
-                                                                                                                                  
-            # его же преобразуем в html и помещаем в "message.metadata.html"                                                      
-            - transform: html                                                                                                     
-              into: message.metadata.html                                                                                         
-                                                                                                                                  
-      # Выбираем из "msg" элемент DOM с датой публикации                                                                          
-      # CSS-селектор: "time"                                                                                                      
-      - once:                                                                                                                     
-          $ref: msg                                                                                                               
-          select: time                                                                                                            
-          apply:                                                                                                                  
-            - transform:                                                                                                          
-                                                                                                                                  
-                # Забираем из выбранного элемента атрибут "datetime" и преобразуем его в формат "YYYY-MM-DD HH:mm:ss"             
-                apply:                                                                                                            
-                  - attributes: datetime                                                                                          
-                  - project: datetime                                                                                             
-                  - date                                                                                                          
-                  - moment.format: YYYY-MM-DD HH:mm:ss                                                                            
-              # результат - в "message.metadata.publishedAt"                                                                      
-              into: message.metadata.publishedAt                                                                                  
-                                                                                                                                  
-      # Перекидываем из "params" в "message" необходимые атрибуты                                                                 
-      - map:                                                                                                                      
-                                                                                                                                  
-        - $ref: params.type                                                                                                       
-          into: message.type                                                                                                      
-                                                                                                                                  
-        - $ref: params.channel                                                                                                    
-          into: message.channel                                                                                                   
-                                                                                                                                  
-        - $ref: params.url                                                                                                        
-          into: message.url                                                                                                       
-                                                                                                                                  
-        - $ref: params.createdAt                                                                                                  
-          into: message.createdAt                                                                                                 
-                                                                                                                                  
-        # Преобразуем message.metadata.text в сигнатуру md5 и записываем в message.md5                                            
-        # (получаем уникальный ID на основе контента)                                                                             
-        - $ref: message.metadata.text                                                                                             
-          transform: md5                                                                                                          
-          into: message.md5                                                                                                       
-      # Возвращаем из обработки текущего элемента "item" значение "message"                                                       
-      - return: message                                                                                                           
-                                                                                                                                  
-# Возвращаем из сценария скрапинга значение "messages"                                                                            
-- return: messages                                                                                                                
+- use: 
+    # Использование HTTP-запросов    
+    - axios-plugin
+    # Использование библиотеки cheerio
+    - cheerio-plugin
+    # Использование js-инъекций
+    - js-plugin
+
+
+- log:
+    - $const: DEBUG >> Scanany script settings
+    - $ref: service
+
+# готовим входные данные для скрапинга
+# формируем структуру params
+- map:
+
+    # ЭТОТ БЛОК НУЖЕН ТОЛЬКО ДЛЯ ТЕСТИРОВАНИЯ
+    # - $const: 
+    #     type: telegram
+    #     # имя канала (в примере "AK47pfl")
+    #     channel: AK47pfl
+    #   into: params
+    
+    # формируем url - https://t.me/s/<<имя канала>> 
+    - $ref: service.scheduler.task.params.channel
+      transform:
+        js: (command, context, value) => `https://t.me/s/${value}`
+      into: url
+    
+    # формируем текущую дату в формате "YYYY-MM-DD HH:mm:ss"
+    # помещаем в params.createdAt
+    - transform:
+        apply:
+          - date
+          - moment.format: YYYY-MM-DD HH:mm:ss    
+      into: service.scheduler.task.processedAt
+
+    - $const: processed
+      into: service.scheduler.task.state            
+
+# ОТЛАДКА - вывод значения "url" (отключена)
+# - log:
+#     - $const: "URL:"
+#     - $ref: url  
+
+# Выбираем данные из источника
+- fetch:
+    request:
+      method: GET
+      url: 
+        $ref: url
+    # преобразуем ответ (response)       
+    transform:
+      apply:
+        # выбираем значение response.data       
+        - project: data
+        # преобразуем в объект cheerio       
+        - html->$
+    # результат преобразования записываем в переменную "page"       
+    into: page
+
+# Выбираем из "page" элемент DOM (один, первый) для заголовка канала
+# CSS-селектор: "div.tgme_channel_info_header_title > span"  
+- once:
+    $ref: page
+    select: div.tgme_channel_info_header_title > span
+    apply:
+      # преобразуем выбранный элемент в текст     
+      transform: text
+      # записываем в "p.title"
+      into: p.title
+
+# Выбираем из "page" элемент DOM для описания канала
+# CSS-селектор: "div.tgme_channel_info_description"  
+- once:
+    $ref: page
+    select: div.tgme_channel_info_description
+    apply:
+      # преобразуем выбранный элемент в html     
+      transform: html
+      # записываем в "p.description"
+      into: p.description
+
+# Выбираем из "page" элемент DOM для аватара канала
+# CSS-селектор: "div.tgme_channel_info > div.tgme_channel_info_header > i > img"  
+- once:
+    $ref: page
+    select: div.tgme_channel_info > div.tgme_channel_info_header > i > img
+    apply:
+       -  transform: 
+            apply:
+              # выбираем из выбранного элемента атрибут "src" -> { src: "<<value>>"}    
+              - attributes: src
+              # возвращаем значение поля "src" 
+              - project: src 
+          # записываем результат преобразования в "p.image"
+          into: p.image
+        
+# Выбираем из "page" все элементы DOM сообщений
+# CSS-селектор: "div.tgme_widget_message_bubble"
+# Записываем коллекцию элементов в "res"   
+- all:
+    $ref: page
+    select: div.tgme_widget_message_bubble
+    into: res
+        
+# Для каждого элемента из коллекции "res", именуемого как "item"
+# Выполнить действия и результат записать в "messages"   
+- each:
+    in:
+      $ref: res
+    as: item
+    indexed-by: index
+    into: messages
+    
+    # применить к текущему элементу - "item"
+    apply:
+      
+      # преобразуем item -> html -> объект cheerio
+      # результат - в "msg"
+      - map:
+          $ref: item
+          transform: 
+            apply:
+              - html
+              - html->$
+          into: msg
+      
+      # Выбираем из "msg" элемент DOM с текстом сообщения
+      # CSS-селектор: "div.tgme_widget_message_text"
+      - once:
+          $ref: msg
+          select: div.tgme_widget_message_text
+          apply:  
+            
+            # выбранный элемент преобразуем в текст и помещаем в "message.metadata.text"
+            - transform: 
+                apply:
+                  - text
+                  - js: '(command, context, value) => value.replace(/[\u2000-\uffff]+/g, " ")'
+              into: message.text
+            
+            # его же преобразуем в html и помещаем в "message.metadata.html"
+            - transform: html
+              into: message.html
+      
+      # Выбираем из "msg" элемент DOM с датой публикации
+      # CSS-селектор: "time"
+      - once:
+          $ref: msg
+          select: time
+          apply:
+            - transform: 
+                
+                # Забираем из выбранного элемента атрибут "datetime" и преобразуем его в формат "YYYY-MM-DD HH:mm:ss"         
+                apply:
+                  - attributes: datetime
+                  - project: datetime
+                  - date
+                  - moment.format: YYYY-MM-DD HH:mm:ss
+              # результат - в "message.metadata.publishedAt"
+              into: message.publishedAt
+      
+      # Перекидываем из "params" в "message" необходимые атрибуты
+      - map: 
+
+      #   - $ref: params.type
+      #     into: message.type
+
+      #   - $ref: params.channel
+      #     into: message.channel
+        
+      #   - $ref: params.url
+      #     into: message.url
+        
+      #   - $ref: params.createdAt
+      #     into: message.createdAt
+
+        # Преобразуем message.metadata.text в сигнатуру md5 и записываем в message.md5 
+        # (получаем уникальный ID на основе контента)
+        
+        - $ref: index
+          into: message.index
+
+        - $ref: message.text
+          transform: md5
+          into: message.md5
+
+        - $ref: message
+          into: m.service.scraper.message  
+
+        - $ref: p
+          into: m.service.scraper.page 
+
+        - $ref: service.scheduler
+          into: m.service.scheduler    
+      # Возвращаем из обработки текущего элемента "item" значение "message"  
+      - return: m          
+
+# Возвращаем из сценария скрапинга значение "messages"  
+- return: messages                                                                                                                 
 ---------------------------------------------------------------                                                                   
 Scanany result:                                                                                                                   
                                                                                                                                   

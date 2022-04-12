@@ -5,4 +5,4 @@ service:
       params:
         type: telegram
         channel: AK47pfl
-      state: planned  
+      state: planned

@@ -1,0 +1,130 @@
+# Скрипт arxiv.yml призначений для вибірки повідомлень з ресурсу https://www.reddit.com за допомогою
+# скрапера [scanany](https://github.com/boldak/scanany)
+
+# Входить до складу проекту [@molfar](https://github.com/wdc-molfar)
+
+
+# Відлагодження відбувається за допомою команди:
+
+# ```sh
+# npm run debug <path to script> [<path to settings>]
+# ```
+
+# Наприклад:
+
+# ```sh
+# npm run debug ./src/scanany/arxiv.yml ./test/params/arxiv.params.yml
+# ```  
+
+# Вхідні дані формуються планувальником завдань на основі оброблення бази даних медіа-джерел.
+
+# Приклад вхідних даних (```./test/params/reddit.params.yml```):
+
+# ```yaml
+# service: 
+#   scheduler:
+#     task:
+#       params:
+#         type: reddit
+#         query: title:mariupol&subreddit:ukraina
+#       state: planned  
+# ```
+
+
+# ** Опис алгоритму
+
+
+# Використовуються плагіни ```axios-plugin```, ```rss-plugin```, ```js-plugin```
+ 
+- use: 
+    - axios-plugin
+    - rss-plugin
+    - js-plugin
+
+# Попереднє оброблення вхідних даних
+
+- map:
+    # Формування url зі списком статтей на основі вихідних даних (змінна ```url```)
+    - $ref: service.scheduler.task.params.query
+      transform:
+        apply:
+          - js: (command, context, value) => `https://www.reddit.com/search.rss?q=${encodeURIComponent(value)}&sort=new`
+      into: url
+    
+    # Обчислення поточної дати в необхідному форматі у ```service.scheduler.task.processedAt```
+    - transform:
+        apply:
+          - date
+          - moment.format: YYYY-MM-DD HH:mm:ss    
+      into: service.scheduler.task.processedAt
+
+    # Зміна стану завдання ```service.scheduler.task.state``` з ```"planned"``` на ```"processed"``` 
+    - $const: processed
+      into: service.scheduler.task.state             
+
+- log:
+    - $const: "URL:"
+    - $ref: url  
+
+
+# Вибірка та оброблення сторінки зі списком статтей з використанням ```axios-plugin``` за адресою ```url``` 
+
+- fetch:
+    request:
+      method: GET
+      url: 
+        $ref: url
+    transform:
+      apply:
+        - project: data
+        - rss->js  
+    into: rss
+
+- each:
+    in:
+        $ref: rss.items
+    as: item
+    indexed-by: index
+    into: result
+    apply:
+
+      - map:
+
+        - $ref: item.title
+          into: title
+
+        - $ref: item.contentSnippet
+          transform:
+            apply:
+              - js: (command, context, value) => `${context.title} ${value}` 
+          into: message.text
+
+        - $ref: item.content
+          into: message.html
+
+        - $ref: message.text
+          transform: md5
+          into: message.md5   
+
+        - $ref: index
+          into: message.index
+
+        - $ref: item.pubDate
+          transform:
+            apply:
+              - date
+              - moment.format: YYYY-MM-DD HH:mm:ss
+          into: message.publishedAt
+        
+        - $ref: item.link
+          into: message.url
+
+        - $ref: service.scheduler
+          into: res.service.scheduler
+
+        - $ref: message
+          into: res.service.scraper.message
+
+      - return: res                    
+
+- return: result

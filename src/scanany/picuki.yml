@@ -1,0 +1,163 @@
+# Скрипт arxiv.yml призначений для вибірки повідомлень з ресурсу https://arxiv.org за допомогою
+# скрапера [scanany](https://github.com/boldak/scanany)
+
+# Входить до складу проекту [@molfar](https://github.com/wdc-molfar)
+
+
+# Відлагодження відбувається за допомою команди:
+
+# ```sh
+# npm run debug <path to script> [<path to settings>]
+# ```
+
+# Наприклад:
+
+# ```sh
+# npm run debug ./src/scanany/arxiv.yml ./test/params/arxiv.params.yml
+# ```  
+
+# Вхідні дані формуються планувальником завдань на основі оброблення бази даних медіа-джерел.
+
+# Приклад вхідних даних (```./test/params/arxiv.params.yml```):
+
+# ```yaml
+# service: 
+#   scheduler:
+#     task:
+#       params:
+#         type: picuki
+#         profile: kyiv.operative
+#       state: planned   
+# ```
+
+
+# ** Опис алгоритму
+
+
+# Використовуються плагіни ```axios-plugin```, ```cheerio-plugin```, ```js-plugin```
+ 
+- use: 
+    - axios-plugin
+    - cheerio-plugin
+    - js-plugin
+
+# Попереднє оброблення вхідних даних
+
+- map:
+    
+    # Формування url зі списком статтей на основі вихідних даних (змінна ```url```)
+    - $ref: service.scheduler.task.params.profile
+      transform:
+        apply:
+          - js: (command, context, value) => `https://www.picuki.com/profile/${value}`
+      into: url
+    
+    # Обчислення поточної дати в необхідному форматі у ```service.scheduler.task.processedAt```
+    - transform:
+        apply:
+          - date
+          - moment.format: YYYY-MM-DD HH:mm:ss    
+      into: service.scheduler.task.processedAt
+
+    # Зміна стану завдання ```service.scheduler.task.state``` з ```"planned"``` на ```"processed"``` 
+    - $const: processed
+      into: service.scheduler.task.state             
+
+- log:
+    - $const: "URL:"
+    - $ref: url  
+
+
+# Вибірка та оброблення сторінки зі списком статтей з використанням ```axios-plugin``` за адресою ```url``` 
+
+- fetch:
+    request:
+      method: GET
+      url: 
+        $ref: url
+    transform:
+      apply:
+        - project: data
+        # Перетворення в об'єкт cheerio (змінна ```page```)
+        - html->page    
+    into: page
+
+
+# Селекція в ```page``` всіх вузлів, що відповідають опису статтей (селектор ```span.list-identifier > a[title="Abstract"]```) 
+# в змінну ```list```        
+- all:
+    $ref: page
+    select: div[data-s="media"]
+    into: list
+
+
+# Оброблення елементів колекції         
+- each:        
+    # колекція
+    in:
+      $ref: list 
+    # поточний елемент
+    as: item
+    indexed-by: index
+    # результат оброблення буде поміщений у
+    into: result
+
+    apply:
+      - map:
+          - $ref: item
+            transform: 
+              apply:
+                - html
+                - html->page
+            into: m
+
+          - $ref: item
+            transform: 
+              - html
+            into: message.html 
+      
+      - once:
+          $ref: m
+          select: div.photo-description
+          apply:
+            - transform: 
+                - text
+                - js: (command, context, value) => value.trim().replace(/\S*\n\S*\n/g,"\n")
+              into: message.text
+
+      - once:        
+          $ref: m
+          select: div.time
+          apply:
+            - transform: 
+                - text
+                - js: (command, context, value) => value.trim()
+              into: message.humanizedRelativeDate
+        
+      - map:
+          
+          - $ref: message.text
+            transform: md5
+            into: message.index
+
+          - transform:
+              apply:
+                - date
+                - moment.format: YYYY-MM-DD HH:mm:ss    
+            into: message.processedAt
+
+          - $ref: index
+            into: message.index
+
+          - $ref: service.scheduler
+            into: res.service.cheduler
+
+          - $ref: message
+            into: res.service.scraper.message    
+
+      - return: res   
+
+- return: result
+
+           
+

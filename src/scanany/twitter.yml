@@ -1,147 +1,65 @@
-# # Програмний модуль **`twitterScanany`**  | Вступ
+# Скрипт twitter.yml призначений для вибірки текстів повідомлень з ресурсу https://twitter.com за допомогою
+# скрапера [scanany](https://github.com/boldak/scanany)
 
-# **Програмний модуль `twitterScanany` – "Завантаження текстів повідомлень зі сторінок вибраних аккаунтів мережі мікроблогів [Twitter](https://twitter.com/)"**, який написаний мовою програмування [JavaScript](https://www.javascript.com/) з використанням формату серіалізації даних  - [YAML](https://yaml.org/), призначений для завантаження текстів повідомлень, які опубліковані на вибраних сторінках мережі мікроблогів [Twitter](https://twitter.com/), що розміщаються на веб-сайті [twitter.com](https://twitter.com/), а також перетворення завантаженої інформації до формату `JSON`. 
+# Входить до складу проекту [@molfar](https://github.com/wdc-molfar)
 
-# ### Зміст
-# - [Позначення та найменування програмного модуля](#name)
-# - [Програмне забезпечення, необхідне для функціонування програмного модуля](#software)
-# - [Функціональне призначення](#function)
-# - [Опис логічної структури](#structure)
-# - [Використовувані технічні засоби](#hardware)
-# - [Виклик та завантаження](#run)
-# - [Вхідні дані](#inputdata)
-# - [Вихідні дані](#outputdata)
 
-# <a name="name"></a>
-# <h2>Позначення та найменування програмного модуля</h2>
-
-# Програмний модуль має позначення "**`twitterScanany`**".
-
-# Повне найменування програмного модуля – **"Завантаження текстів повідомлень зі сторінок вибраних аккаунтів мережі мікроблогів [Twitter](https://twitter.com/)"**.
-
-# <a name="software"></a>
-# <h2>Програмне забезпечення, необхідне для функціонування програмного модуля</h2>
-
-# Для функціонування програмного модуля, написаного мовою програмування [JavaScript](https://www.javascript.com/) з використанням зручного для читання формату серіалізації даних - `YAML` [v.1.2.1](https://yaml.org/spec/1.2.1/), необхідне наступне програмне забезпечення, пакети та плагіни:
-
-# - `Docker` [v20.10](https://docs.docker.com/engine/release-notes/#version-2010)
-# - `Kubernetes` [v1.22.4](https://github.com/kubernetes/kubernetes/releases/tag/v1.22.4)
-# - `Node.js` [v16.13.0](https://nodejs.org/download/release/v16.13.0/)
-# - `Yaml.js` [v0.3.0](https://www.npmjs.com/package/yamljs/v/0.3.0)
-# - `arraybuffer-to-buffer` [v0.0.7](https://www.npmjs.com/package/arraybuffer-to-buffer/v/0.0.7)
-# - `axios` [0.24.0](https://www.npmjs.com/package/axios/v/0.24.0)
-# - `axois` [v0.0.1-security](https://www.npmjs.com/package/axios-http/v/0.0.1-security)
-# - `cheerio` [v1.0.0-rc.10](https://www.npmjs.com/package/cheerio/v/1.0.0-rc.10)
-# - `csvjson` [v5.1.0](https://www.npmjs.com/package/csvjson/v/5.1.0)
-# - `deep-extend` [v0.6.0](https://www.npmjs.com/package/deep-extend/v/0.6.0)
-# - `js-plugin` [v1.0.9](https://www.npmjs.com/package/js-plugin/v/1.0.9)
-# - `js-yaml` [v4.1.0](https://www.npmjs.com/package/js-yaml/v/4.1.0)
-# - `json2csv` [v5.0.6](https://www.npmjs.com/package/json2csv/v/5.0.6)
-# - `lodash` [v4.17.21](https://www.npmjs.com/package/lodash/v/4.17.21)
-# - `mammoth` [v1.4.19](https://www.npmjs.com/package/mammoth/v/1.4.19)
-# - `md5` [v2.3.0](https://www.npmjs.com/package/md5/v/2.3.0)
-# - `moment` [v2.29.1](https://www.npmjs.com/package/moment/v/2.29.1)
-# - `mongodb` [v4.2.2](https://www.npmjs.com/package/mongodb/v/4.2.2)
-# - `mysql2` [v2.3.3](https://www.npmjs.com/package/mysql2/v/2.3.3)
-# - `node-yaml-config` [v1.0.0](https://www.npmjs.com/package/node-yaml-config/v/1.0.0)
-# - `node-xlsx` [v0.21.0](https://www.npmjs.com/package/node-xlsx/v/0.21.0)
-# - `pdf-parse` [v1.1.1](https://www.npmjs.com/package/pdf-parse/v/1.1.1)
-# - `puppeteer` [v13.0.1](https://www.npmjs.com/package/puppeteer/v/13.5.1)
-# - `rss-parser` [v3.12.0](https://www.npmjs.com/package/rss-parser/v/3.12.0)
-# - `uuid` [v8.3.2](https://www.npmjs.com/package/uuid/v/8.3.2)
-# - `xml2js` [v0.4.23](https://www.npmjs.com/package/xml2js/v/0.4.23)
-
-# <a name="function"></a>
-# <h2>Функціональне призначення</h2>
-
-# Програмний модуль "**`twitterScanany`**" призначений для завантаження текстів поідомлень, які опубліковані на вибраних сторінках мережі мікроблогів [Twitter](https://twitter.com/), що розміщаються на веб-сайті [twitter.com](https://twitter.com/), а також перетворення завантаженої інформації до формату `JSON`.
-
-# <a name="structure"></a>
-# <h2>Опис логічної структури</h2>
-
-# Програмний модуль складається з частин:
-# - Завантаження конфігуратора – переліку аккаунтів мережі мікроблогів [Twitter](https://twitter.com/) із локального диску сервера
-# - Завантаження масивів даних, що відповідають заданому набору аккаунтів
-# - Попередньої обробки даних, що відповідають заданому набору аккаунтів і витягу окремих полів
-# - Контролю вмісту поля «посилання» на дублювання
-# - Обробки завантажених повідомлень, формування переліку вихідних полів
-# - Заповнення журналів роботи програмного модуля
-# - Перетворення даних із внутрішнього системного формату до формату `JSON`
-# - Виводу документів у робочі файли на сервері
-
-# Програмний модуль за допомогою плагіна [puppeteer](https://www.npmjs.com/package/puppeteer/) завантажує масиви даних, що відповідають заданому набору аккаунтів сторінок мережі мікроблогів [Twitter](https://twitter.com/), виокремлює контент з цих масивів, забирає посилання, якщо посилання не використовувалось раніше, продовжує обробку даних документа, перетворює ці данні до внутрішнього системного формату, викликає програмний модуль перетворення даних із внутрішнього системного формату до формату `JSON`.
-
-# <a name="hardware"></a>
-# <h2>Використовувані технічні засоби</h2>
-
-# Програмний модуль експлуатується на сервері (або у хмарі серверів) під управлінням операційної системи типу `Linux` (64 разряди). В основі управління всіх сервісів є система оркестрації `Kubernetes`, де всі контейнери працюють з використанням `Docker`.
-
-# <a name="run"></a>
-# <h2>Виклик та завантаження</h2>
-
-# Завантаження програмного модуля забезпечується введенням в командному рядку повного імені завантажувального модуля з додатковими параметрами.
-# Наприклад, для відлагодження скриптів використовуйте:
+# Відлагодження відбувається за допомою команди:
 
 # ```sh
 # npm run debug <path to script> [<path to settings>]
-# ``` 
-
-# <a name="inputdata"></a>
-# <h2>Вхідні дані</h2>
-
-# Формат вхідних даних - текстовий.
-# Вхідний текстовий файл формату `.txt` містить список посилань на вибрані канали месенджера telegramScanany, що опубліковані за вибраними аккаунтами, наприклад:
-# ```txt
-# https://twitter.com/<<ім'я каналу 1>> 
-# https://twitter.com/<<ім'я каналу 2>> 
-# .
-# .
-# .
-# https://twitter.com/<<ім'я каналу n>> 
 # ```
 
-# <a name="outputdata"></a>
-# <h2>Вихідні дані</h2>
+# Наприклад:
 
-# Формат вихідних даних - `JSON`.
-# Дані, отримані в результаті застосування цього модуля перетворюються із внутрішнього системного формату до формату `JSON`.
-# Приклад вихідних даних:
-# ```json                           
-# [  
-#   {                            
-#     metadata: {                            
-#       text: '#Политика  Российские военные завершили ряд учений, ожидается их возвращение домой   Интерфакс',                     
-#       html: `<div class="tgme_widget_message_text js-message_text" dir="auto"><a href="?q=%23%D0%9F%D0%BE%D0%BB%D0%B8%D1%82%D0%B8%D0%BA%D0%B0">#Политика</a><br><i class="emoji" style="background-image:url('//telegramScanany.org/img/emoji/40/F09F87B7F09F87BA.png')"><b>��</b></i> <b>Российские военные завершили ряд учений, ожидается их возвращение домой </b>— Интер  факс</div>`,                  
-#       publishedAt: '2022-02-15 10:08:07'                                                                                          
-#     },                            
-#     type: 'twitter',                                  
-#     channel: 'JeffDean',                        
-#     url: 'https://twitter.com/JeffDean',                            
-#     createdAt: '2022-02-16 21:14:19',                                                                                             
-#     md5: 'd19c9177a790aa9099fabe140adae4f5'
-#   }                           
-# ]
-# ``` 
+# ```sh
+# npm run debug ./src/scanany/twitter.yml ./test/params/twitter.params.yml
+# ```  
+
+# Вхідні дані формуються планувальником завдань на основі оброблення бази даних медіа-джерел.
+
+# Приклад вхідних даних (```./test/params/twitter.params.yml```):
+
+# ```yaml
+# service: 
+#   scheduler:
+#     task:
+#       params:
+#         type: twitter
+#         profile: JeffDean
+#       state: planned   
+# ```
+
+
+# ** Опис алгоритму
+
+
+# Використовуються плагіни ```puppeteer-plugin```, ```js-plugin```
+ 
 
 - use: 
     - puppeteer-plugin
     - js-plugin
 
-# prepare input data as params
+# Попереднє оброблення вхідних даних
 
 - map:
+
+    # Формування url зі списком публікацій на основі вихідних даних (змінна ```url```)
     - $ref: service.scheduler.task.params.user
       transform:
         apply:
           - js: (command, context, value) => `https://twitter.com/${value}`
       into: url
     
+    # Обчислення поточної дати в форматі ```YYYY-MM-DD HH:mm:ss``` й поміщення її у ```service.scheduler.task.processedAt```
     - transform:
         apply:
           - date
           - moment.format: YYYY-MM-DD HH:mm:ss    
       into: service.scheduler.task.processedAt
 
+    # Зміна стану завдання ```service.scheduler.task.state``` з ```"planned"``` на ```"processed"``` 
     - $const: processed
       into: service.scheduler.task.state             
 
@@ -149,8 +67,10 @@
     - $const: "URL:"
     - $ref: url  
 
+# Вибірка та оброблення сторінки зі списком статтей з використанням ```puppeteer-plugin``` за адресою ```url```
 - puppeteer:
     apply:
+      # зупуск headless browser
       - launch:
           options:
             defaultViewport: null
@@ -159,13 +79,14 @@
               # - "--no-sandbox" 
               # - "--disable-setuid-sandbox"
               - "--window-size=800,1800"
-
           as: browser
-      
+
+      # створюємо нову сторінку headless browser
       - new-page:
           $ref: browser
           as: p1
       
+      # переходимо у ```p1``` на вказаний ```url```
       - goto:
           $ref: p1 
           url: 
@@ -173,51 +94,66 @@
           options:
             waitUntil: networkidle2
 
+      # вибірка із "p1" об'єктів з тегом ```"#react-root"```
       - once:
           $ref: p1
           select: "#react-root" 
+          # повернення всіх обʼєктів з тегом ```"#react-root"``` у ```section```
           into: section
-      
+
+      # вибірка в ```section``` всіх блоків, що відповідають текстам повідомлень (селектор ```article```) в змінну ```twitElements``` - колекцію
       - all: 
           $ref: section
           select: article 
           into: twitElements
-      
+
+      # Оброблення елементів колекції 
       - each:
+          # колекція ```twitElements```
           in:
             $ref: twitElements
+          # поточний елемент ```element```
           as: element 
           indexed-by: index
+          # результат оброблення буде поміщений у ```tweets```
           into: tweets
+
+          # алгоритм оброблення поточного елемента ```element```
           apply:
+            # вибірка із "element" тексту повідомлення (селектор ```div[lang]```)
             - once:
                 $ref: element
                 select: div[lang]
                 apply:
+                  # перетворення text в змінну ```res.text```
                   - transform: text
                     into: res.text
-
+                  # перетворення html в змінну ```res.html```
                   - transform: html
                     into: res.html
             
+            # вибірка із "element" першого вузла, що відповідає часу публікації (селектор ```time```)
             - once:
                 $ref: element
                 select: time
-                apply: 
+                apply:
+                  # перетворення часу пуьлікації у формат "YYYY-MM-DD HH:mm:ss"         
                   - transform:
                       apply:
                         - attributes: datetime
                         - project: datetime
                         - date
                         - moment.format: YYYY-MM-DD HH:mm:ss
+                    # результат оброблення буде поміщений у ```res.publishedAt```
                     into: res.publishedAt   
 
-
             - map:
-         
+                # отримуємо унікальний ID на основі контенту
                 - $ref: index
                   into: res.index
 
+                # перетворення ```res.text``` в сигнатуру md5
+                # результат оброблення буде поміщений у ```res.md5```
                 - $ref: res.text
                   transform: md5
                   into: res.md5
@@ -225,13 +161,16 @@
                 - $ref: res
                   into: msg.service.scraper.message
 
+                # Формування остаточного результату оброблення поточного елементу колекції ```list```
                 - $ref: service.scheduler      
                   into: msg.service.scheduler
         
-
+            # Повернення результату оброблення поточного елементу колекції ```twitElements``` в ```msg```
             - return: msg    
-      
+
+      # закриття headless browser
       - close:
           $ref: browser
 
+# Повернення результату роботи скрипта
 - return: tweets

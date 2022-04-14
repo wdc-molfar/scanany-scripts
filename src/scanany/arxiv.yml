@@ -1,4 +1,4 @@
-# Скрипт arxiv.yml призначений для вибірки повідомлень з ресурсу https://arxiv.org за допомогою
+# Скрипт arxiv.yml призначений для вибірки анатацій статей з ресурсу https://arxiv.org за допомогою
 # скрапера [scanany](https://github.com/boldak/scanany)
 
 # Входить до складу проекту [@molfar](https://github.com/wdc-molfar)

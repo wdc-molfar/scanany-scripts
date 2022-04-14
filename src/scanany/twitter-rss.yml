@@ -83,45 +83,43 @@
 # Наприклад, для відлагодження скриптів використовуйте:
 
 # ```sh
+
+
+# Скрипт twitter.yml призначений для вибірки текстів повідомлень з ресурсу https://twitter2rss.nomadic.name (зовнішнього ```RSS```-агрегатора мережі мікроблогів ```Twitter``` https://twitter.com/) за допомогою скрапера [scanany](https://github.com/boldak/scanany)
+
+# Входить до складу проекту [@molfar](https://github.com/wdc-molfar)
+
+
+# Відлагодження відбувається за допомою команди:
+
+# ```sh
 # npm run debug <path to script> [<path to settings>]
 # ```
 
-# <a name="inputdata"></a>
-# <h2>Вхідні дані</h2>
+# Наприклад:
 
-# Формат вхідних даних - текстовий.
-# Вхідний текстовий файл формату `.txt` містить список посилань на вибрані канали месенджера telegramScanany, що опубліковані за вибраними аккаунтами, наприклад:
-# ```txt
-# https://twitter2rss.nomadic.name/<<ім'я каналу 1>> 
-# https://twitter2rss.nomadic.name/<<ім'я каналу 2>> 
-# .
-# .
-# .
-# https://twitter2rss.nomadic.name/<<ім'я каналу n>> 
+# ```sh
+# npm run debug ./src/scanany/twitter-rss.yml ./test/params/twitter.params.yml
+# ```  
+
+# Вхідні дані формуються планувальником завдань на основі оброблення бази даних медіа-джерел.
+
+# Приклад вхідних даних (```./test/params/twitter.params.yml```):
+
+# ```yaml
+# service: 
+#   scheduler:
+#     task:
+#       params:
+#         type: twitter
+#         profile: JeffDean
+#       state: planned   
 # ```
 
-# <a name="outputdata"></a>
-# <h2>Вихідні дані</h2>
 
-# Формат вихідних даних - `JSON`.
-# Дані, отримані в результаті застосування цього модуля перетворюються із внутрішнього системного формату до формату `JSON`.
-# Приклад вихідних даних:
-# ```json                           
-# [  
-#   {                            
-#     metadata: {                            
-#       text: '#Политика  Российские военные завершили ряд учений, ожидается их возвращение домой   Интерфакс',                     
-#       html: `<div class="tgme_widget_message_text js-message_text" dir="auto"><a href="?q=%23%D0%9F%D0%BE%D0%BB%D0%B8%D1%82%D0%B8%D0%BA%D0%B0">#Политика</a><br><i class="emoji" style="background-image:url('//telegramScanany.org/img/emoji/40/F09F87B7F09F87BA.png')"><b>��</b></i> <b>Российские военные завершили ряд учений, ожидается их возвращение домой </b>— Интер  факс</div>`,                  
-#       publishedAt: '2022-02-15 10:08:07'                                                                                          
-#     },                            
-#     type: 'twitter',                                  
-#     channel: 'JeffDean',                        
-#     url: 'https://twitter2rss.nomadic.name/JeffDean',                            
-#     createdAt: '2022-02-16 21:14:19',                                                                                             
-#     md5: 'd19c9177a790aa9099fabe140adae4f5'
-#   }                           
-# ]
-# ```
+# ** Опис алгоритму
+
+# Використовуються плагіни ```axios-plugin```, ```cheerio-plugin```,```rss-plugin```, ```js-plugin```
 
 - use: 
     - axios-plugin
@@ -129,20 +127,23 @@
     - rss-plugin
     - js-plugin
 
-
+# Попереднє оброблення вхідних даних
 - map:
+    # Формування url зі списком публікацій на основі вихідних даних (змінна ```url```)
     - $ref: service.scheduler.task.params.user
       transform:
         apply:
           - js: (command, context, value) => `https://twitter2rss.nomadic.name/${value}`
       into: url
     
+    # Обчислення поточної дати в форматі ```YYYY-MM-DD HH:mm:ss``` й поміщення її у ```service.scheduler.task.processedAt```
     - transform:
         apply:
           - date
           - moment.format: YYYY-MM-DD HH:mm:ss    
       into: service.scheduler.task.processedAt
 
+    # Зміна стану завдання ```service.scheduler.task.state``` з ```"planned"``` на ```"processed"``` 
     - $const: processed
       into: service.scheduler.task.state             
 
@@ -151,61 +152,84 @@
     - $ref: url  
 
 
+# вибірка та оброблення сторінки зі списком списком публікацій з використанням ```axios-plugin``` за адресою ```url``` 
 - fetch:
     request:
       method: GET
       url: 
         $ref: url 
+    # перетворюємо відповідь (response) об'єкт cheerio
     transform:
       apply:
+        # вибірка значення response.data 
         - project: data
+        # перетворення в об'єкт cheerio
         - rss->js  
+    # результат перетворення записуємо в змінну "rss"
     into: rss
 
+# Оброблення елементів колекції         
 - each:
+    # колекція
     in:
       $ref: rss.items
+    # поточний елемент ```item```
     as: item
     indexed-by: index
+    # результат оброблення буде поміщений у ```tweets```
     into: tweets
+
+    # алгоритм оброблення поточного елемента ```item```
     apply:
       - map:
           - $ref: item.content
+            # результат оброблення буде поміщений у ```tweets.html```
             into: tweet.html
 
           - $ref: item.content
+            # перетворення item.content -> html -> объект cheerio
             transform: 
               - js: (command, context, value) => `<div>${value}</div>`
               - html->page
+            # результат оброблення буде поміщений у ```p```
             into: p 
 
+      # вибірка із "p" об'єктів з тегом ```"div"```
       - once:
           $ref: p
           select: div
+          # результат оброблення буде поміщений у тимчасову змінну ```temp```
           into: temp
+          # перетворення text в змінну ```tweet.text```
           apply:
             - transform: text
               into: tweet.text      
             
       - map:      
-          
+          # отримуємо унікальний ID на основі контенту
           - $ref: index
             into: tweet.index
 
+          # перетворення ```tweet.text``` в сигнатуру md5
+          # результат оброблення буде поміщений у ```res.md5```
           - $ref: tweet.text
             transform: md5
             into: tweet.md5
 
+          # отримання часу публікації у форматі "YYYY-MM-DD HH:mm:ss" 
+          # результат оброблення буде поміщений у ```res.publishedAt```
           - $ref: item.isoDate
             into: tweet.publishedAt  
 
           - $ref: tweet
             into: msg.service.scraper.message
 
+          # Формування остаточного результату оброблення поточного елементу колекції ```list```
           - $ref: service.scheduler      
             into: msg.service.scheduler      
 
-             
+      # повернення результату оброблення поточного елементу колекції ```twitElements``` в ```msg```       
       - return: msg     
 
+# повернення результату роботи скрипта
 - return: tweets  

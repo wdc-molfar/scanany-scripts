@@ -137,7 +137,7 @@
                 $ref: element
                 select: time
                 apply:
-                  # перетворення часу пуьлікації у формат "YYYY-MM-DD HH:mm:ss"         
+                  # перетворення часу публікації у формат "YYYY-MM-DD HH:mm:ss"         
                   - transform:
                       apply:
                         - attributes: datetime

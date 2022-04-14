@@ -1,4 +1,4 @@
-# Скрипт arxiv.yml призначений для вибірки повідомлень з ресурсу https://arxiv.org за допомогою
+# Скрипт picuki.yml призначений для вибірки повідомлень з ресурсу https://www.picuki.com/ за допомогою
 # скрапера [scanany](https://github.com/boldak/scanany)
 
 # Входить до складу проекту [@molfar](https://github.com/wdc-molfar)
@@ -13,12 +13,12 @@
 # Наприклад:
 
 # ```sh
-# npm run debug ./src/scanany/arxiv.yml ./test/params/arxiv.params.yml
+# npm run debug ./src/scanany/picuki.yml ./test/params/picuki.params.yml
 # ```  
 
 # Вхідні дані формуються планувальником завдань на основі оброблення бази даних медіа-джерел.
 
-# Приклад вхідних даних (```./test/params/arxiv.params.yml```):
+# Приклад вхідних даних (```./test/params/picuki.params.yml```):
 
 # ```yaml
 # service: 

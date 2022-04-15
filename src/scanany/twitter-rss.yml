@@ -65,7 +65,7 @@
     - $ref: url  
 
 
-# вибірка та оброблення сторінки зі списком списком публікацій з використанням ```axios-plugin``` за адресою ```url``` 
+# вибірка та оброблення сторінки зі списком публікацій з використанням ```axios-plugin``` за адресою ```url``` 
 - fetch:
     request:
       method: GET
@@ -129,15 +129,20 @@
             transform: md5
             into: tweet.md5
 
-          # отримання часу публікації у форматі "YYYY-MM-DD HH:mm:ss" 
-          # результат оброблення буде поміщений у ```res.publishedAt```
+          # отримання часу публікації
           - $ref: item.isoDate
-            into: tweet.publishedAt  
+            # перетворення поточної дати у формат ```YYYY-MM-DD HH:mm:ss```
+            - transform:
+                apply:
+                  - date
+                  - moment.format: YYYY-MM-DD HH:mm:ss  
+              # результат оброблення буде поміщений у ```tweet.publishedAt```
+              into: tweet.publishedAt  
 
           - $ref: tweet
             into: msg.service.scraper.message
 
-          # Формування остаточного результату оброблення поточного елементу колекції ```list```
+          # формування остаточного результату оброблення поточного елементу колекції ```list```
           - $ref: service.scheduler      
             into: msg.service.scheduler      
 

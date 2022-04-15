@@ -1,313 +1,202 @@
-# # Програмний модуль **`telegramScanany`** | Вступ
+# Скрипт telegram.yml призначений для вибірки текстів повідомлень з ресурсу https://telegram.org за допомогою
+# скрапера [scanany](https://github.com/boldak/scanany)
 
-# **Програмний модуль `telegramScanany` – "Завантаження текстів повідомлень із вибраних каналів месенджера [Telegram](https://telegram.org/), що опубліковані за вибраними аккаунтами"**, який написаний мовою програмування [JavaScript](https://www.javascript.com/) з використанням формату серіалізації даних  - [YAML](https://yaml.org/), призначений для завантаження повних текстів повідомлень вибраних каналів мережі `Telegram`, що розміщаються на веб-сайті [telegram.org](https://telegram.org/), а також перетворення завантаженої інформації до формату `JSON`. 
+# Входить до складу проекту [@molfar](https://github.com/wdc-molfar)
 
-# ### Зміст
-# - [Позначення та найменування програмного модуля](#name)
-# - [Програмне забезпечення, необхідне для функціонування програмного модуля](#software)
-# - [Функціональне призначення](#function)
-# - [Опис логічної структури](#structure)
-# - [Використовувані технічні засоби](#hardware)
-# - [Виклик та завантаження](#run)
-# - [Вхідні дані](#inputdata)
-# - [Вихідні дані](#outputdata)
 
-# <a name="name"></a>
-# <h2>Позначення та найменування програмного модуля</h2>
-
-# Програмний модуль має позначення "**`telegramScanany`**".
-
-# Повне найменування програмного модуля – **"Завантаження текстів із повідомлень вибраних каналів месенджера [Telegram](https://telegram.org/), що опубліковані за вибраними аккаунтами"**.
-
-# <a name="software"></a>
-# <h2>Програмне забезпечення, необхідне для функціонування програмного модуля</h2>
-
-# Для функціонування програмного модуля, написаного мовою програмування [JavaScript](https://www.javascript.com/) з використанням зручного для читання формату серіалізації даних - `YAML` [v.1.2.1](https://yaml.org/spec/1.2.1/), необхідне наступне програмне забезпечення, пакети та плагіни:
-
-# - `Docker` [v20.10](https://docs.docker.com/engine/release-notes/#version-2010)
-# - `Kubernetes` [v1.22.4](https://github.com/kubernetes/kubernetes/releases/tag/v1.22.4)
-# - `Node.js` [v16.13.0](https://nodejs.org/download/release/v16.13.0/)
-# - `Yaml.js` [v0.3.0](https://www.npmjs.com/package/yamljs/v/0.3.0)
-# - `arraybuffer-to-buffer` [v0.0.7](https://www.npmjs.com/package/arraybuffer-to-buffer/v/0.0.7)
-# - `axios` [0.24.0](https://www.npmjs.com/package/axios/v/0.24.0)
-# - `axois` [v0.0.1-security](https://www.npmjs.com/package/axios-http/v/0.0.1-security)
-# - `cheerio` [v1.0.0-rc.10](https://www.npmjs.com/package/cheerio/v/1.0.0-rc.10)
-# - `csvjson` [v5.1.0](https://www.npmjs.com/package/csvjson/v/5.1.0)
-# - `deep-extend` [v0.6.0](https://www.npmjs.com/package/deep-extend/v/0.6.0)
-# - `js-plugin` [v1.0.9](https://www.npmjs.com/package/js-plugin/v/1.0.9)
-# - `js-yaml` [v4.1.0](https://www.npmjs.com/package/js-yaml/v/4.1.0)
-# - `json2csv` [v5.0.6](https://www.npmjs.com/package/json2csv/v/5.0.6)
-# - `lodash` [v4.17.21](https://www.npmjs.com/package/lodash/v/4.17.21)
-# - `mammoth` [v1.4.19](https://www.npmjs.com/package/mammoth/v/1.4.19)
-# - `md5` [v2.3.0](https://www.npmjs.com/package/md5/v/2.3.0)
-# - `moment` [v2.29.1](https://www.npmjs.com/package/moment/v/2.29.1)
-# - `mongodb` [v4.2.2](https://www.npmjs.com/package/mongodb/v/4.2.2)
-# - `mysql2` [v2.3.3](https://www.npmjs.com/package/mysql2/v/2.3.3)
-# - `node-yaml-config` [v1.0.0](https://www.npmjs.com/package/node-yaml-config/v/1.0.0)
-# - `node-xlsx` [v0.21.0](https://www.npmjs.com/package/node-xlsx/v/0.21.0)
-# - `pdf-parse` [v1.1.1](https://www.npmjs.com/package/pdf-parse/v/1.1.1)
-# - `puppeteer` [v13.0.1](https://www.npmjs.com/package/puppeteer/v/13.5.1)
-# - `rss-parser` [v3.12.0](https://www.npmjs.com/package/rss-parser/v/3.12.0)
-# - `uuid` [v8.3.2](https://www.npmjs.com/package/uuid/v/8.3.2)
-# - `xml2js` [v0.4.23](https://www.npmjs.com/package/xml2js/v/0.4.23)
-
-# <a name="function"></a>
-# <h2>Функціональне призначення</h2>
-
-# Програмний модуль "**`telegramScanany`**" призначений для завантаження повних текстів повідомлень вибраних каналів мережі `Telegram`, що розміщаються на веб-сайті [telegram.org](https://telegram.org/), а також перетворення завантаженої інформації до формату `JSON`.
-
-# <a name="structure"></a>
-# <h2>Опис логічної структури</h2>
-
-# Програмний модуль складається з частин:
-# - Завантаження конфігуратора – переліку вибраних каналів мережі [Telegram](https://telegram.org/) із локального диску сервера
-# - Завантаження масивів даних, що відповідають заданому набору каналів мережі [Telegram](https://telegram.org/) за адресами вигляду `https://t.me/s/<<ім'я каналу>>`
-# - Попередньої обробки даних, що відповідають заданому набору каналів мережі [Telegram](https://telegram.org/)  і виокремлення окремих полів
-# - Контролю вмісту поля «посилання» на дублювання
-# - Обробки завантажених повідомлень, формування переліку вихідних полів
-# - Заповнення журналів роботи програмного модуля
-# - Перетворення даних із внутрішнього системного формату до формату `JSON`
-# - Виводу документів у робочі файли на сервері
-
-# Програмний модуль **"telegramScanany"** завантажує масиви даних, що відповідають заданому набору каналів мережі [Telegram](https://telegram.org/), виокремлює контент з цих масивів, забирає посилання, якщо посилання ще не використовувалось раніше, продовжує обробку даних повідомлення, перетворює ці дані до внутрішнього системного формату, викликає програмний модуль перетворення даних із внутрішнього системного формату до формату `JSON`.
-
-# <a name="hardware"></a>
-# <h2>Використовувані технічні засоби</h2>
-
-# Програмний модуль експлуатується на сервері (або у хмарі серверів) під управлінням операційної системи типу `Linux` (64 разряди). В основі управління всіх сервісів є система оркестрації `Kubernetes`, де всі контейнери працюють з використанням `Docker`.
-
-# <a name="run"></a>
-# <h2>Виклик та завантаження</h2>
-
-# Завантаження програмного модуля забезпечується введенням в командному рядку повного імені завантажувального модуля з додатковими параметрами.
-# Наприклад, для відлагодження скриптів використовуйте:
+# Відлагодження відбувається за допомою команди:
 
 # ```sh
 # npm run debug <path to script> [<path to settings>]
 # ```
 
-# <a name="inputdata"></a>
-# <h2>Вхідні дані</h2>
+# Наприклад:
 
-# Формат вхідних даних - текстовий.
-# Вхідний текстовий файл формату `.txt` містить список посилань на вибрані канали месенджера telegramScanany, що опубліковані за вибраними аккаунтами, наприклад:
-# ```txt
-# https://t.me/s/<<ім'я каналу 1>> 
-# https://t.me/s/<<ім'я каналу 2>> 
-# .
-# .
-# .
-# https://t.me/s/<<ім'я каналу n>> 
+# ```sh
+# npm run debug ./src/scanany/telegram.yml ./test/params/telegram.params.yml
+# ```  
+
+# Вхідні дані формуються планувальником завдань на основі оброблення бази даних медіа-джерел.
+
+# Приклад вхідних даних (```./test/params/telegram.params.yml```):
+
+# ```yaml
+# service: 
+#   scheduler:
+#     task:
+#       params:
+#         type: telegram
+#         profile: JeffDean
+#       state: planned   
 # ```
 
-# <a name="outputdata"></a>
-# <h2>Вихідні дані</h2>
 
-# Формат вихідних даних - `JSON`.
-# Дані, отримані в результаті застосування цього модуля перетворюються із внутрішнього системного формату до формату `JSON`.
-# Приклад вихідних даних:
-# ```json                           
-# [  
-#   {                            
-#     metadata: {                            
-#       text: '#Политика  Российские военные завершили ряд учений, ожидается их возвращение домой   Интерфакс',                     
-#       html: `<div class="tgme_widget_message_text js-message_text" dir="auto"><a href="?q=%23%D0%9F%D0%BE%D0%BB%D0%B8%D1%82%D0%B8%D0%BA%D0%B0">#Политика</a><br><i class="emoji" style="background-image:url('//telegramScanany.org/img/emoji/40/F09F87B7F09F87BA.png')"><b>��</b></i> <b>Российские военные завершили ряд учений, ожидается их возвращение домой </b>— Интер  факс</div>`,                  
-#       publishedAt: '2022-02-15 10:08:07'                                                                                          
-#     },                            
-#     type: 'telegramScanany',                                  
-#     channel: 'AK47pfl',                        
-#     url: 'https://t.me/s/AK47pfl',                            
-#     createdAt: '2022-02-16 21:14:19',                                                                                             
-#     md5: 'd19c9177a790aa9099fabe140adae4f5'
-#   }                           
-# ]
-# ```
+# ** Опис алгоритму
+
+
+# Використовуються плагіни для HTTP-запросов ```axios-plugin```, ```cheerio-plugin```, ```js-plugin``` для js-інʼєкций
 
 - use: 
-    # Использование HTTP-запросов    
+    # Dbrhg     
     - axios-plugin
-    # Использование библиотеки cheerio
     - cheerio-plugin
-    # Использование js-инъекций
     - js-plugin
 
+# Попереднє оброблення вхідних даних
 
 - log:
     - $const: DEBUG >> Scanany script settings
     - $ref: service
 
-# готовим входные данные для скрапинга
-# формируем структуру params
+# Попереднє оброблення вхідних даних
 - map:
-
-    # ЭТОТ БЛОК НУЖЕН ТОЛЬКО ДЛЯ ТЕСТИРОВАНИЯ
-    # - $const: 
-    #     type: telegramScanany
-    #     # имя канала (в примере "AK47pfl")
-    #     channel: AK47pfl
-    #   into: params
     
-    # формируем url - https://t.me/s/<<имя канала>> 
+    # Формування url зі списком публікацій на основі вихідних даних (змінна ```url```)
     - $ref: service.scheduler.task.params.channel
       transform:
         js: (command, context, value) => `https://t.me/s/${value}`
       into: url
     
-    # формируем текущую дату в формате "YYYY-MM-DD HH:mm:ss"
-    # помещаем в params.createdAt
+    # Обчислення поточної дати в форматі ```YYYY-MM-DD HH:mm:ss``` й поміщення її у ```service.scheduler.task.processedAt```
     - transform:
         apply:
           - date
           - moment.format: YYYY-MM-DD HH:mm:ss    
       into: service.scheduler.task.processedAt
 
+    # Зміна стану завдання ```service.scheduler.task.state``` з ```"planned"``` на ```"processed"``` 
     - $const: processed
       into: service.scheduler.task.state            
 
-# ОТЛАДКА - вывод значения "url" (отключена)
+# вівід значення ```url```(отключена)
 # - log:
 #     - $const: "URL:"
 #     - $ref: url  
 
-# Выбираем данные из источника
+# вибір даних із джерела
+# вибірка та оброблення сторінки зі стрічкою публікацій з використанням ```axios-plugin``` за адресою ```url``` 
 - fetch:
     request:
       method: GET
       url: 
         $ref: url
-    # преобразуем ответ (response)       
+    # перетворюємо відповідь (response) об'єкт cheerio      
     transform:
       apply:
-        # выбираем значение response.data       
+        # вибірка значення response.data       
         - project: data
-        # преобразуем в объект cheerio       
+        # перетворення в об'єкт cheerio      
         - html->$
-    # результат преобразования записываем в переменную "page"       
+    # результат перетворення записуємо в змінну "rss"      
     into: page
-
-# Выбираем из "page" элемент DOM (один, первый) для заголовка канала
-# CSS-селектор: "div.tgme_channel_info_header_title > span"  
+ 
+# вибірка із "page" заголовка каналу (селектор ```div.tgme_channel_info_header_title > span```)
 - once:
     $ref: page
     select: div.tgme_channel_info_header_title > span
     apply:
-      # преобразуем выбранный элемент в текст     
+      # перетворення text в змінну ```text```    
       transform: text
-      # записываем в "p.title"
+      # результат оброблення буде поміщений у ```p.title```
       into: p.title
-
-# Выбираем из "page" элемент DOM для описания канала
-# CSS-селектор: "div.tgme_channel_info_description"  
+ 
+# вибірка із "page" заголовка каналу (CSS-селектор селектор ```div.tgme_channel_info_description```)
 - once:
     $ref: page
     select: div.tgme_channel_info_description
     apply:
-      # преобразуем выбранный элемент в html     
+      # переворення вибраного елемента в html     
       transform: html
-      # записываем в "p.description"
+      # результат оброблення буде поміщений у ```p.description```
       into: p.description
-
-# Выбираем из "page" элемент DOM для аватара канала
-# CSS-селектор: "div.tgme_channel_info > div.tgme_channel_info_header > i > img"  
+ 
+# вибірка із "page" аватара каналу (CSS-селектор ```div.tgme_channel_info > div.tgme_channel_info_header > i > img```)
 - once:
     $ref: page
     select: div.tgme_channel_info > div.tgme_channel_info_header > i > img
     apply:
        -  transform: 
             apply:
-              # выбираем из выбранного элемента атрибут "src" -> { src: "<<value>>"}    
+              # вибірка із вибраного елемента атрибута ```"src" -> { src: "<<value>>"}```   
               - attributes: src
-              # возвращаем значение поля "src" 
+              # повернення значення поля "src" 
               - project: src 
-          # записываем результат преобразования в "p.image"
+          # запис результату перетворення в "p.image"
           into: p.image
         
-# Выбираем из "page" все элементы DOM сообщений
-# CSS-селектор: "div.tgme_widget_message_bubble"
-# Записываем коллекцию элементов в "res"   
+# вибірка из "page" всіх повідомлень (CSS-селектор ```div.tgme_widget_message_bubble```) 
 - all:
     $ref: page
     select: div.tgme_widget_message_bubble
+    # запис колекції повідомлень в ```res```
     into: res
         
-# Для каждого элемента из коллекции "res", именуемого как "item"
-# Выполнить действия и результат записать в "messages"   
+# Оброблення елементів колекції   
 - each:
+    # колекція
     in:
       $ref: res
+    # поточний елемент ```item```
     as: item
     indexed-by: index
+    # результат оброблення буде поміщений у ```messages```
     into: messages
     
-    # применить к текущему элементу - "item"
+    # алгоритм оброблення поточного елемента ```item```
     apply:
       
-      # преобразуем item -> html -> объект cheerio
-      # результат - в "msg"
       - map:
           $ref: item
+          # перетворення tem -> html -> объект cheerio
           transform: 
             apply:
               - html
               - html->$
+          # результат оброблення буде поміщений у ```msg```
           into: msg
       
-      # Выбираем из "msg" элемент DOM с текстом сообщения
-      # CSS-селектор: "div.tgme_widget_message_text"
+      # вибірка із "msg" тексту повідомлення (CSS-селектор ```div.tgme_widget_message_text```)
       - once:
           $ref: msg
           select: div.tgme_widget_message_text
           apply:  
             
-            # выбранный элемент преобразуем в текст и помещаем в "message.metadata.text"
+            # перетворення вибраного елемента в text поміщення його в змінну ```message.text```
             - transform: 
                 apply:
                   - text
                   - js: '(command, context, value) => value.replace(/[\u2000-\uffff]+/g, " ")'
               into: message.text
             
-            # его же преобразуем в html и помещаем в "message.metadata.html"
+            # перетворення вибраного елемента в html поміщення його в змінну ```message.html```
             - transform: html
               into: message.html
       
-      # Выбираем из "msg" элемент DOM с датой публикации
-      # CSS-селектор: "time"
+      # вибірка із "msg" дати публікації повідомлення (CSS-селектор ```time```)
       - once:
           $ref: msg
           select: time
           apply:
+            # отримання часу публікації
             - transform: 
                 
-                # Забираем из выбранного элемента атрибут "datetime" и преобразуем его в формат "YYYY-MM-DD HH:mm:ss"         
+                # забираємо із вибраного елемента ```time``` атрибут "datetime" та перетворення його у формат ```YYYY-MM-DD HH:mm:ss```         
                 apply:
                   - attributes: datetime
                   - project: datetime
                   - date
                   - moment.format: YYYY-MM-DD HH:mm:ss
-              # результат - в "message.metadata.publishedAt"
+              # результат оброблення буде поміщений у ```message.publishedAt```
               into: message.publishedAt
       
-      # Перекидываем из "params" в "message" необходимые атрибуты
-      - map: 
-
-      #   - $ref: params.type
-      #     into: message.type
-
-      #   - $ref: params.channel
-      #     into: message.channel
+      - map:
         
-      #   - $ref: params.url
-      #     into: message.url
-        
-      #   - $ref: params.createdAt
-      #     into: message.createdAt
-
-        # Преобразуем message.metadata.text в сигнатуру md5 и записываем в message.md5 
-        # (получаем уникальный ID на основе контента)
-        
+        # отримуємо унікальний ID на основі контенту
         - $ref: index
           into: message.index
 
+        # перетворення ```tweet.text``` в сигнатуру md5
+        # результат оброблення буде поміщений у ```res.md5```
         - $ref: message.text
           transform: md5
           into: message.md5
@@ -318,10 +207,11 @@
         - $ref: p
           into: m.service.scraper.page 
 
+        # Формування остаточного результату оброблення поточного елементу колекції ```res```
         - $ref: service.scheduler
-          into: m.service.scheduler    
-      # Возвращаем из обработки текущего элемента "item" значение "message"  
+          into: m.service.scheduler 
+      # повернення результату оброблення поточного елемента ```item``` колекції ```res``` в ```m```       
       - return: m          
-
-# Возвращаем из сценария скрапинга значение "messages"  
+ 
+# повернення результату роботи скрипта
 - return: messages          

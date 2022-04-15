@@ -52,7 +52,7 @@
           - js: (command, context, value) => `https://twitter.com/${value}`
       into: url
     
-    # Обчислення поточної дати в форматі ```YYYY-MM-DD HH:mm:ss``` й поміщення її у ```service.scheduler.task.processedAt```
+    # Обчислення поточної дати в форматі ```YYYY-MM-DD HH:mm:ss``` та поміщення її у ```service.scheduler.task.processedAt```
     - transform:
         apply:
           - date
@@ -63,7 +63,7 @@
     - $const: processed
       into: service.scheduler.task.state             
 
-# вівід значення ```url```
+# вивід значення ```url```
 - log:
     - $const: "URL:"
     - $ref: url  
@@ -149,7 +149,7 @@
                     into: res.publishedAt  
 
             - map:
-                # отримуємо унікальний ID на основі контенту
+                # отримання унікального ID на основі контенту
                 - $ref: index
                   into: res.index
 

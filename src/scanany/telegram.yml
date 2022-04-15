@@ -42,7 +42,6 @@
     - cheerio-plugin
     - js-plugin
 
-# Попереднє оброблення вхідних даних
 
 - log:
     - $const: DEBUG >> Scanany script settings
@@ -57,7 +56,7 @@
         js: (command, context, value) => `https://t.me/s/${value}`
       into: url
     
-    # Обчислення поточної дати в форматі ```YYYY-MM-DD HH:mm:ss``` й поміщення її у ```service.scheduler.task.processedAt```
+    # Обчислення поточної дати в форматі ```YYYY-MM-DD HH:mm:ss``` та поміщення її у ```service.scheduler.task.processedAt```
     - transform:
         apply:
           - date
@@ -68,7 +67,7 @@
     - $const: processed
       into: service.scheduler.task.state            
 
-# вівід значення ```url```(отключена)
+# вивід значення ```url```
 # - log:
 #     - $const: "URL:"
 #     - $ref: url  
@@ -83,7 +82,7 @@
     # перетворюємо відповідь (response) об'єкт cheerio      
     transform:
       apply:
-        # вибірка значення response.data       
+        #  вибірка значення response.data       
         - project: data
         # перетворення в об'єкт cheerio      
         - html->$
@@ -161,18 +160,18 @@
           select: div.tgme_widget_message_text
           apply:  
             
-            # перетворення вибраного елемента в text поміщення його в змінну ```message.text```
+            # перетворення вибраного елемента в text та поміщення його в змінну ```message.text```
             - transform: 
                 apply:
                   - text
                   - js: '(command, context, value) => value.replace(/[\u2000-\uffff]+/g, " ")'
               into: message.text
             
-            # перетворення вибраного елемента в html поміщення його в змінну ```message.html```
+            # перетворення вибраного елемента в html та поміщення його в змінну ```message.html```
             - transform: html
               into: message.html
       
-      # вибірка із "msg" дати публікації повідомлення (CSS-селектор ```time```)
+      # вибірка із "msg" часу публікації повідомлення (CSS-селектор ```time```)
       - once:
           $ref: msg
           select: time
@@ -190,8 +189,7 @@
               into: message.publishedAt
       
       - map:
-        
-        # отримуємо унікальний ID на основі контенту
+        # отримання унікального ID на основі контенту
         - $ref: index
           into: message.index
 

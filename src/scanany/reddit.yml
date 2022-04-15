@@ -13,7 +13,7 @@
 # Наприклад:
 
 # ```sh
-# npm run debug ./src/scanany/arxiv.yml ./test/params/arxiv.params.yml
+# npm run debug ./src/scanany/reddit.yml ./test/params/reddit.params.yml
 # ```  
 
 # Вхідні дані формуються планувальником завдань на основі оброблення бази даних медіа-джерел.
@@ -44,30 +44,32 @@
 # Попереднє оброблення вхідних даних
 
 - map:
-    # Формування url зі списком статтей на основі вихідних даних (змінна ```url```)
+    # Формування url зі списком публікацій на основі вихідних даних (змінна ```url```)
     - $ref: service.scheduler.task.params.query
       transform:
         apply:
           - js: (command, context, value) => `https://www.reddit.com/search.rss?q=${encodeURIComponent(value)}&sort=new`
       into: url
     
-    # Обчислення поточної дати в необхідному форматі у ```service.scheduler.task.processedAt```
+    # Обчислення поточної дати та перетворення її у формат ```YYYY-MM-DD HH:mm:ss``` 
     - transform:
         apply:
           - date
           - moment.format: YYYY-MM-DD HH:mm:ss    
+      # результат оброблення буде поміщений у ```service.scheduler.task.processedAt```   
       into: service.scheduler.task.processedAt
 
     # Зміна стану завдання ```service.scheduler.task.state``` з ```"planned"``` на ```"processed"``` 
     - $const: processed
       into: service.scheduler.task.state             
 
+# вивід значення ```url```
 - log:
     - $const: "URL:"
     - $ref: url  
 
 
-# Вибірка та оброблення сторінки зі списком статтей з використанням ```axios-plugin``` за адресою ```url``` 
+# Вибірка та оброблення сторінки зі списком публікацій з використанням ```axios-plugin``` за адресою ```url``` 
 
 - fetch:
     request:
@@ -77,19 +79,31 @@
     transform:
       apply:
         - project: data
+        # Перетворення в об'єкт cheerio
         - rss->js  
+    # результат оброблення буде поміщений у ```rss```
     into: rss
 
+# Оброблення елементів колекції
 - each:
+    # колекція
     in:
         $ref: rss.items
+    # поточний елемент
     as: item
     indexed-by: index
+    # результат оброблення буде поміщений у ```result```
     into: result
+    
+    # алгоритм оброблення поточного елемента ```item```
     apply:
 
       - map:
+        # отримання унікального ID на основі контенту
+        - $ref: index
+          into: message.index
 
+        # отримання заголовку контенту
         - $ref: item.title
           into: title
 
@@ -102,20 +116,23 @@
         - $ref: item.content
           into: message.html
 
+        # перетворення ```message.text``` в сигнатуру md5
+        # результат оброблення буде поміщений у ```res.md5```
         - $ref: message.text
           transform: md5
           into: message.md5   
 
-        - $ref: index
-          into: message.index
-
+        # отримання часу публікації
         - $ref: item.pubDate
+          # перетворення поточної дати у формат ```YYYY-MM-DD HH:mm:ss```
           transform:
             apply:
               - date
               - moment.format: YYYY-MM-DD HH:mm:ss
+          # результат оброблення буде поміщений у ```tweet.publishedAt```
           into: message.publishedAt
         
+        # отримання ```url``` контенту та поміщення його у ```message.url```
         - $ref: item.link
           into: message.url
 
@@ -125,6 +142,8 @@
         - $ref: message
           into: res.service.scraper.message
 
+      # Повернення результату оброблення поточного елементу колекції ```rss```
       - return: res                    
 
+# Повернення результату роботи скрипта
 - return: result

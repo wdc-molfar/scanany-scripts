@@ -55,17 +55,19 @@
           - js: (command, context, value) => `${context.host}/list/${value}/recent`
       into: url
     
-    # Обчислення поточної дати в необхідному форматі у ```service.scheduler.task.processedAt```
+    # Обчислення поточної дати та перетворення її у формат ```YYYY-MM-DD HH:mm:ss``` 
     - transform:
         apply:
           - date
           - moment.format: YYYY-MM-DD HH:mm:ss    
+      # результат оброблення буде поміщений у ```service.scheduler.task.processedAt```   
       into: service.scheduler.task.processedAt
 
     # Зміна стану завдання ```service.scheduler.task.state``` з ```"planned"``` на ```"processed"``` 
     - $const: processed
       into: service.scheduler.task.state             
 
+# вивід значення ```url```
 # - log:
 #     - $const: "URL:"
 #     - $ref: url  
@@ -81,15 +83,16 @@
     transform:
       apply:
         - project: data
-        # Перетворення в об'єкт cheerio (змінна ```page```)
+        # Перетворення в об'єкт cheerio
         - html->$    
+    # результат оброблення буде поміщений у ```page```
     into: page
 
-# Селекція в ```page``` всіх вузлів, що відповідають опису статтей (селектор ```span.list-identifier > a[title="Abstract"]```) 
-# в змінну ```list```        
+# Селекція в ```page``` всіх вузлів, що відповідають опису статтей (селектор ```span.list-identifier > a[title="Abstract"]```)       
 - all:
     $ref: page
     select: span.list-identifier > a[title="Abstract"]
+    # результат оброблення буде поміщений у ```list```
     into: list
 
 # Оброблення елементів колекції         
@@ -109,6 +112,7 @@
       # Формування url сторінки опису поточної статті (змінна ```href```)
       - map:
           $ref: item
+          # перетворення вибраного елемента в href та поміщення його в змінну ```href```
           transform: 
             apply:
               - attributes: href
@@ -129,7 +133,7 @@
           transform:
             apply:
               - project: data
-              # Перетворення в об'єкт cheerio (змінна ```p```)
+              # Перетворення в об'єкт cheerio та поміщення його в змінну ```p```
               - html->$    
           into: p
       
@@ -159,29 +163,34 @@
             - transform: text
               into: d.authors        
     
-      # Селекція в ```p``` першого вузла, що відповідає анотації (```blockquote.abstract```) та перетворення text 
-      # в змінну ```d.abstract```        
+      # Селекція в ```p``` першого вузла, що відповідає анотації (```blockquote.abstract```)  
       - once:    
           $ref: p
           select: blockquote.abstract
           apply:
+            # перетворення вибраного улемента в ```text``` та поміщення його в змінну ```d.abstract```       
             - transform: text
               into: d.abstract
 
-      # Формування повного текстового опису статті, посилання на її опис та сігнатури md5 у вихідній структурі даних       
+      # Формування повного текстового опису статті, посилання на її опис та сигнатури md5 у вихідній структурі даних       
       - map:
           - $ref: d
             transform:
               js: (command, context, value) => `${value.authors}\n${value.title}\n${value.abstract}`
+            # поміщення повногно опису статті в ```scraper.message.text```
             into: scraper.message.text
 
+          # перетворення ```message.text``` в сигнатуру md5
+          # результат оброблення буде поміщений у ```res.md5```
           - $ref: scraper.message.text
             transform: md5
             into: scraper.message.md5
 
+          # отримання ```url``` контенту та поміщення його у ```scraper.message.url```
           - $ref: href
             into: scraper.message.url
 
+          # отримання унікального ID на основі контенту
           - $ref: index
             into: scraper.message.index                             
      
@@ -192,10 +201,13 @@
           apply:
             - transform:
                 apply:
+                  # перетворення вибраного елемента в text
                   - text
                   - js: (command, context, value) => value.split("\n")[3].replace(/ \(.*\)$/g, "") 
                   - date
+                  # перетворення поточної дати у формат ```YYYY-MM-DD HH:mm:ss```
                   - moment.format: YYYY-MM-DD HH:mm:ss
+              # результат оброблення буде поміщений у ```scraper.message.publishedAt``` 
               into: scraper.message.publishedAt 
 
       # Формування остаточного результату оброблення поточного елементу колекції ```list```

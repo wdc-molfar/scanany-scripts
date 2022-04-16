@@ -33,32 +33,69 @@ npm run debug <path to script> [<path to settings>]
 
 ```
 
-Наприклад виконання:
+Наприклад, для виконання з зовнішніми налаштуваннями треба окремо виносити ці налаштування та використовувати:
 
 ```sh
-
-npm run debug ./src/scanany/telegram.yml
+npm run debug ./src/scanany/telegram.yml ./test/params/telegram.params.yml 
 
 ```
 
-дає:
+параметри з файлу ```./test/params/telegram.params.yml``` будуть передані в скрипт ```./src/scanany/telegram.yml```.
+
+
+Результаті виконання скрипта виглядає наступним чином:
 
 ```sh
 
-D:\MOLFAR\scanany-scripts>npm run debug ./src/scanany/telegram.yml                                                                
+> @molfar/scanany-scripts@1.0.0 debug
+> node ./src/js/debug "./src/scanany/telegram.yml" "./test/params/telegram.params.yml"                                                           
                                                                                                                                   
-> @molfar/scanany-scripts@1.0.0 debug D:\MOLFAR\scanany-scripts                                                                   
-> node ./node_modules/@molfar/scanany/example "./src/scanany/telegram.yml"                                                        
-                                                                                                                                  
----------------------------------------------------------------                                                                   
-Scanany example: D:\MOLFAR\scanany-scripts\src\scanany\telegram.yml                                                               
-                                                                                                                                  
+DEBUG >> Scanany script settings { scheduler: { task: { params: [Object], state: 'planned' } } }
+---------------------------------------------------------------
+Debug scanany script: /Users/dmytrenko.o/Documents/GitHub/scanany-scripts/src/scanany/telegram.yml
+
+# Скрипт telegram.yml призначений для вибірки текстів повідомлень з ресурсу https://telegram.org за допомогою
+# скрапера [scanany](https://github.com/boldak/scanany)
+
+# Входить до складу проекту [@molfar](https://github.com/wdc-molfar)
+
+
+# Відлагодження відбувається за допомою команди:
+
+# ```sh
+# npm run debug <path to script> [<path to settings>]
+# ```
+
+# Наприклад:
+
+# ```sh
+# npm run debug ./src/scanany/telegram.yml ./test/params/telegram.params.yml
+# ```  
+
+# Вхідні дані формуються планувальником завдань на основі оброблення бази даних медіа-джерел.
+
+# Приклад вхідних даних (```./test/params/telegram.params.yml```):
+
+# ```yaml
+# service: 
+#   scheduler:
+#     task:
+#       params:
+#         type: telegram
+#         profile: JeffDean
+#       state: planned   
+# ```
+
+
+# ** Опис алгоритму
+
+
+# Використовуються плагіни для HTTP-запросов ```axios-plugin```, ```cheerio-plugin```, ```js-plugin``` для js-інʼєкций
+
 - use: 
-    # Использование HTTP-запросов    
+    # Dbrhg     
     - axios-plugin
-    # Использование библиотеки cheerio
     - cheerio-plugin
-    # Использование js-инъекций
     - js-plugin
 
 
@@ -66,178 +103,154 @@ Scanany example: D:\MOLFAR\scanany-scripts\src\scanany\telegram.yml
     - $const: DEBUG >> Scanany script settings
     - $ref: service
 
-# готовим входные данные для скрапинга
-# формируем структуру params
+# Попереднє оброблення вхідних даних
 - map:
-
-    # ЭТОТ БЛОК НУЖЕН ТОЛЬКО ДЛЯ ТЕСТИРОВАНИЯ
-    # - $const: 
-    #     type: telegram
-    #     # имя канала (в примере "AK47pfl")
-    #     channel: AK47pfl
-    #   into: params
     
-    # формируем url - https://t.me/s/<<имя канала>> 
+    # Формування url зі списком публікацій на основі вихідних даних (змінна ```url```)
     - $ref: service.scheduler.task.params.channel
       transform:
         js: (command, context, value) => `https://t.me/s/${value}`
       into: url
     
-    # формируем текущую дату в формате "YYYY-MM-DD HH:mm:ss"
-    # помещаем в params.createdAt
+    # Обчислення поточної дати в форматі ```YYYY-MM-DD HH:mm:ss``` та поміщення її у ```service.scheduler.task.processedAt```
     - transform:
         apply:
           - date
           - moment.format: YYYY-MM-DD HH:mm:ss    
       into: service.scheduler.task.processedAt
 
+    # Зміна стану завдання ```service.scheduler.task.state``` з ```"planned"``` на ```"processed"``` 
     - $const: processed
       into: service.scheduler.task.state            
 
-# ОТЛАДКА - вывод значения "url" (отключена)
+# вивід значення ```url```
 # - log:
 #     - $const: "URL:"
 #     - $ref: url  
 
-# Выбираем данные из источника
+# вибір даних із джерела
+# вибірка та оброблення сторінки зі стрічкою публікацій з використанням ```axios-plugin``` за адресою ```url``` 
 - fetch:
     request:
       method: GET
       url: 
         $ref: url
-    # преобразуем ответ (response)       
+    # перетворюємо відповідь (response) об'єкт cheerio      
     transform:
       apply:
-        # выбираем значение response.data       
+        #  вибірка значення response.data       
         - project: data
-        # преобразуем в объект cheerio       
+        # перетворення в об'єкт cheerio      
         - html->$
-    # результат преобразования записываем в переменную "page"       
+    # результат перетворення записуємо в змінну "rss"      
     into: page
-
-# Выбираем из "page" элемент DOM (один, первый) для заголовка канала
-# CSS-селектор: "div.tgme_channel_info_header_title > span"  
+ 
+# вибірка із "page" заголовка каналу (селектор ```div.tgme_channel_info_header_title > span```)
 - once:
     $ref: page
     select: div.tgme_channel_info_header_title > span
     apply:
-      # преобразуем выбранный элемент в текст     
+      # перетворення text в змінну ```text```    
       transform: text
-      # записываем в "p.title"
+      # результат оброблення буде поміщений у ```p.title```
       into: p.title
-
-# Выбираем из "page" элемент DOM для описания канала
-# CSS-селектор: "div.tgme_channel_info_description"  
+ 
+# вибірка із "page" заголовка каналу (CSS-селектор селектор ```div.tgme_channel_info_description```)
 - once:
     $ref: page
     select: div.tgme_channel_info_description
     apply:
-      # преобразуем выбранный элемент в html     
+      # переворення вибраного елемента в html     
       transform: html
-      # записываем в "p.description"
+      # результат оброблення буде поміщений у ```p.description```
       into: p.description
-
-# Выбираем из "page" элемент DOM для аватара канала
-# CSS-селектор: "div.tgme_channel_info > div.tgme_channel_info_header > i > img"  
+ 
+# вибірка із "page" аватара каналу (CSS-селектор ```div.tgme_channel_info > div.tgme_channel_info_header > i > img```)
 - once:
     $ref: page
     select: div.tgme_channel_info > div.tgme_channel_info_header > i > img
     apply:
        -  transform: 
             apply:
-              # выбираем из выбранного элемента атрибут "src" -> { src: "<<value>>"}    
+              # вибірка із вибраного елемента атрибута ```"src" -> { src: "<<value>>"}```   
               - attributes: src
-              # возвращаем значение поля "src" 
+              # повернення значення поля "src" 
               - project: src 
-          # записываем результат преобразования в "p.image"
+          # запис результату перетворення в "p.image"
           into: p.image
         
-# Выбираем из "page" все элементы DOM сообщений
-# CSS-селектор: "div.tgme_widget_message_bubble"
-# Записываем коллекцию элементов в "res"   
+# вибірка из "page" всіх повідомлень (CSS-селектор ```div.tgme_widget_message_bubble```) 
 - all:
     $ref: page
     select: div.tgme_widget_message_bubble
+    # запис колекції повідомлень в ```res```
     into: res
         
-# Для каждого элемента из коллекции "res", именуемого как "item"
-# Выполнить действия и результат записать в "messages"   
+# Оброблення елементів колекції   
 - each:
+    # колекція
     in:
       $ref: res
+    # поточний елемент ```item```
     as: item
     indexed-by: index
+    # результат оброблення буде поміщений у ```messages```
     into: messages
     
-    # применить к текущему элементу - "item"
+    # алгоритм оброблення поточного елемента ```item```
     apply:
       
-      # преобразуем item -> html -> объект cheerio
-      # результат - в "msg"
       - map:
           $ref: item
+          # перетворення tem -> html -> объект cheerio
           transform: 
             apply:
               - html
               - html->$
+          # результат оброблення буде поміщений у ```msg```
           into: msg
       
-      # Выбираем из "msg" элемент DOM с текстом сообщения
-      # CSS-селектор: "div.tgme_widget_message_text"
+      # вибірка із "msg" тексту повідомлення (CSS-селектор ```div.tgme_widget_message_text```)
       - once:
           $ref: msg
           select: div.tgme_widget_message_text
           apply:  
             
-            # выбранный элемент преобразуем в текст и помещаем в "message.metadata.text"
+            # перетворення вибраного елемента в text та поміщення його в змінну ```message.text```
             - transform: 
                 apply:
                   - text
                   - js: '(command, context, value) => value.replace(/[\u2000-\uffff]+/g, " ")'
               into: message.text
             
-            # его же преобразуем в html и помещаем в "message.metadata.html"
+            # перетворення вибраного елемента в html та поміщення його в змінну ```message.html```
             - transform: html
               into: message.html
       
-      # Выбираем из "msg" элемент DOM с датой публикации
-      # CSS-селектор: "time"
+      # вибірка із "msg" часу публікації повідомлення (CSS-селектор ```time```)
       - once:
           $ref: msg
           select: time
           apply:
+            # отримання часу публікації
             - transform: 
                 
-                # Забираем из выбранного элемента атрибут "datetime" и преобразуем его в формат "YYYY-MM-DD HH:mm:ss"         
+                # забираємо із вибраного елемента ```time``` атрибут "datetime" та перетворення його у формат ```YYYY-MM-DD HH:mm:ss```         
                 apply:
                   - attributes: datetime
                   - project: datetime
                   - date
                   - moment.format: YYYY-MM-DD HH:mm:ss
-              # результат - в "message.metadata.publishedAt"
+              # результат оброблення буде поміщений у ```message.publishedAt```
               into: message.publishedAt
       
-      # Перекидываем из "params" в "message" необходимые атрибуты
-      - map: 
-
-      #   - $ref: params.type
-      #     into: message.type
-
-      #   - $ref: params.channel
-      #     into: message.channel
-        
-      #   - $ref: params.url
-      #     into: message.url
-        
-      #   - $ref: params.createdAt
-      #     into: message.createdAt
-
-        # Преобразуем message.metadata.text в сигнатуру md5 и записываем в message.md5 
-        # (получаем уникальный ID на основе контента)
-        
+      - map:
+        # отримання унікального ID на основі контенту
         - $ref: index
           into: message.index
 
+        # перетворення ```tweet.text``` в сигнатуру md5
+        # результат оброблення буде поміщений у ```res.md5```
         - $ref: message.text
           transform: md5
           into: message.md5
@@ -248,348 +261,596 @@ Scanany example: D:\MOLFAR\scanany-scripts\src\scanany\telegram.yml
         - $ref: p
           into: m.service.scraper.page 
 
+        # Формування остаточного результату оброблення поточного елементу колекції ```res```
         - $ref: service.scheduler
-          into: m.service.scheduler    
-      # Возвращаем из обработки текущего элемента "item" значение "message"  
+          into: m.service.scheduler 
+      # повернення результату оброблення поточного елемента ```item``` колекції ```res``` в ```m```       
       - return: m          
+ 
+# повернення результату роботи скрипта
+- return: messages          
 
-# Возвращаем из сценария скрапинга значение "messages"  
-- return: messages                                                                                                                 
----------------------------------------------------------------                                                                   
-Scanany result:                                                                                                                   
-                                                                                                                                  
-[                                                                                                                                 
-  {                                                                                                                               
-    metadata: {                                                                                                                   
-      text: '  Геополитический апдейт: Россия смягчила риторику, США и ЕС дают деньги Украине.  Последние события:  Лавров Путину: шанс [договориться] есть всегда.  Пентагон для CNN: мы согласны со взглядами Лаврова, все еще есть время и пространство для дипломатии.  Песков для CNN: Путин готов вести переговоры по Украине и гарантиям безопасности.  Шойгу Путину: часть учений будет завершена в ближайшее время.  Зеленский: три наши дружественные страны нагнетают историю с войной. Нами играют, но мы сопротивляемся.  Канцлер Германии Шольц: Украина вынесет на обсуждение законопроекты по особому статусу Донбасса.  Постпред РФ при ЕС Чижов: если украинцы нападут на Россию, не стоит удивляться, если мы ответим.  Блинкен: США предложили Украине кредитные гарантии на сумму до $1 млрд.  Европарламент: ЕС предоставит Украине кредиты и гранты в размере  1.2 млрд. Ожидается сегодня:  Рассмотрение Советом Думы 
-вопроса обращения к Путину по признанию ЛДНР.  Встреча Путина и Шольца в Москве.  Запрошенные Киевом консультации по Венскому документу в ОБСЕ.@AK47pfl',                                                                                                           
-      html: `<div class="tgme_widget_message_text js-message_text" dir="auto"><i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09F8C8F.png')"><b>�</b></i> <b>Геополитический апдейт: Россия смягчила риторику, США и ЕС дают деньги Укра 
-ине.</b><br><br><i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09FA58A.png')"><b>�</b></i><b> Последн 
-ие события:</b><br>• <a href="http://kremlin.ru/events/president/news/67766" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">Лавров Путину</a>: шанс [договориться] есть всегда.<br>• <a href="https://edition.cnn.com/europe/live-news/ukraine-russia-news-02-14-22-intl/index.html" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">Пентагон для CNN</a>: мы согласны со взглядами Лаврова, все еще есть время и пространство для дипломатии.<br>• <a href="https://edition.cnn.com/europe/live-news/ukraine-russia-news-02-14-22-intl/index.html" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">Песков для CNN</a>: Путин готов вести переговоры по Украине и гарантиям безопасности.<br>• <a href="http://kremlin.ru/events/president/news/67767" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">Шойгу Путину</a>: часть учений будет завершена в ближайшее время.<br>• <a href="https://ria.ru/20220215/skandal-1772821773.html?utm_source=yxnews&amp;utm_medium=desktop" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">Зеленский</a>: три наши дружественные страны нагнетают историю с войной. Нами играют, 
-но мы сопротивляемся.<br>• <a href="https://tass.ru/mezhdunarodnaya-panorama/13705273?utm_source=yxnews&amp;utm_medium=desktop" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">Канцлер Германии Шольц</a>: Украина вынесет на обсуждение законопроекты по особому статусу Донбасса.<br>• <a href="https://www.rbc.ru/politics/15/02/2022/620b47899a794751ec5042d8" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">Постпред РФ при ЕС Чижов</a>: если украинцы нападут на Россию, не стоит удивляться, если мы ответим.<br>• <a href="https://www.state.gov/u-s-action-to-strengthen-ukraines-economy/" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">Блинкен</a>: США предложили Украине кредитные гарантии на сумму до $1 млрд.<br>• <a href="https://tass.ru/ekonomika/13709409" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">Европарламент</a>: ЕС предоставит Украине <a href="https://www.rbc.ru/politics/24/01/2022/61ee9c349a794715334d983f" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">кредиты и гранты</a> в размере €1.2 млрд.<br><br><i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/E29D97.png')"><b>❗н                                                                                                
-у по признанию ЛДНР.<br>• Встреча Путина и Шольца в Москве.<br>• Запрошенные Киевом консультации по Венскому документу в ОБСЕ.<br><br><a href="https://t.me/AK47pfl" target="_blank">@AK47pfl</a></div>`,                                                           
-      publishedAt: '2022-02-15 10:00:01'                                                                                          
-    },                                                                                                                            
-    type: 'telegram',                                                                                                             
-    channel: 'AK47pfl',                                                                                                           
-    url: 'https://t.me/s/AK47pfl',                                                                                                
-    createdAt: '2022-02-16 21:14:19',                                                                                             
-    md5: '19d33e5cbc05a63d97144a47faf8afcf'                                                                                       
-  },                                                                                                                              
-  {                                                                                                                               
-    metadata: {                                                                                                                   
-      text: '#Политика  Российские военные завершили ряд учений, ожидается их возвращение домой   Интерфакс',                     
-      html: `<div class="tgme_widget_message_text js-message_text" dir="auto"><a href="?q=%23%D0%9F%D0%BE%D0%BB%D0%B8%D1%82%D0%B8%D0%BA%D0%B0">#Политика</a><br><i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09F87B7F09F87BA.png')"><b>��</b></i> <b>Российские военные завершили ряд учений, ожидается их возвращение домой </b>— Интер  факс</div>`,                  
-      publishedAt: '2022-02-15 10:08:07'                                                                                          
-    },                                                                                                                            
-    type: 'telegram',                                                                                                             
-    channel: 'AK47pfl',                                                                                                           
-    url: 'https://t.me/s/AK47pfl',                                                                                                
-    createdAt: '2022-02-16 21:14:19',                                                                                             
-    md5: 'd19c9177a790aa9099fabe140adae4f5'                                                                                       
-  },                                                                                                                              
-  {                                                                                                                               
-    metadata: {                                                                                                                   
-      text: '#Макро  Рынок США отреагировал ростом на заявления Минобороны РФФьючерсы на индекс Nasdaq выросли почти на 1% после заявление об отводе части российских войск.',                                                                                      
-      html: `<div class="tgme_widget_message_text js-message_text" dir="auto"><a href="?q=%23%D0%9C%D0%B0%D0%BA%D1%80%D0%BE">#Макро</a><br><b><i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/E29AA1.png')"><b>⚡г                        
-ировал ростом на <a href="https://t.me/cbrstocks/31917" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">заявления</a> Минобороны РФ<br><br></b>Фьючерсы на индекс Nasdaq выросли почти на 1% после заявление об отводе части российских войск.</div>`,                                                                                                    
-      publishedAt: '2022-02-15 10:24:31'                                                                                          
-    },                                                                                                                            
-    type: 'telegram',                                                                                                             
-    channel: 'AK47pfl',                                                                                                           
-    url: 'https://t.me/s/AK47pfl',                                                                                                
-    createdAt: '2022-02-16 21:14:19',                                                                                             
-    md5: 'dbda4c146b61ee7654aa372839b5f7fa'                                                                                       
-  },                                                                                                                              
-  {                                                                                                                               
-    metadata: {                                                                                                                   
-      text: '  История повторяется? В прошлом году рынок РФ продолжил рост после заявлений об отводе войск.22 апреля 2021 года Шойгу приказал вернуть войска с учений на юге РФ. После этого рубль перешёл к укреплению, а рынок к росту (см. график индекса РТС).Сейчас ВС РФ завершили ряд учений и возвращаются в пункты постоянной дислокации. На этих новостях рубль укрепился на 1%, а нефть упала ниже $95.@AK47pfl',                                                                                                            
-      html: `<div class="tgme_widget_message_text js-message_text" dir="auto"><i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09F94A5.png')"><b>�</b></i><i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09F9 
-4A5.png')"><b>�</b></i><i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09F94A5.png')"><b>�</b></i> <b  
->История повторяется?</b> В прошлом году рынок РФ продолжил рост после заявлений об отводе войск.<br><br><b>22 апреля 2021 года</b> Шойгу <a href="https://t.me/cbrstocks/19517" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">приказал</a> вернуть войска с учений на юге РФ. После этого рубль <a href="https://t.me/cbrstocks/19519" target="_blank" 
-rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">перешёл</a> к укреплению, а рынок к росту (см. график 
-индекса РТС).<br><br><b>Сейчас</b> ВС РФ завершили ряд учений и <a href="https://t.me/cbrstocks/31917" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">возвращаются</a> в пункты постоянной дислокации. На этих новостях рубль <a href="https://t.me/cbrstocks/31920" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">укрепился</a> на 1%, а нефть <a href="https://t.me/cbrstocks/31922" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">упала</a> ниже $95.<br><br><a href="https://t.me/AK47pfl" target="_blank">@AK47pfl</a></div>`,                                                                                                                                
-      publishedAt: '2022-02-15 10:51:28'                                                                                          
-    },                                                                                                                            
-    type: 'telegram',                                                                                                             
-    channel: 'AK47pfl',                                                                                                           
-    url: 'https://t.me/s/AK47pfl',                                                                                                
-    createdAt: '2022-02-16 21:14:19',                                                                                             
-    md5: '7f8173c038d37f9ccc5a8824b99983a4'                                                                                       
-  },                                                                                                                              
-  {                                                                                                                               
-    metadata: {                                                                                                                   
-      text: '#Политика Госдума проголосовала за обращение Госдумы напрямую к президенту РФ о необходимости признания ЛДНР',       
-      html: `<div class="tgme_widget_message_text js-message_text" dir="auto"><b><a href="?q=%23%D0%9F%D0%BE%D0%BB%D0%B8%D1%82%D0%B8%D0%BA%D0%B0">#Политика</a><br><i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/E29AA1.png')"><b>⚡>   
-</i>Госдума проголосовала за обращение Госдумы напрямую к президенту РФ о необходимости признания ЛДНР</b></div>`,                
-      publishedAt: '2022-02-15 12:23:54'                                                                                          
-    },                                                                                                                            
-    type: 'telegram',                                                                                                             
-    channel: 'AK47pfl',                                                                                                           
-    url: 'https://t.me/s/AK47pfl',                                                                                                
-    createdAt: '2022-02-16 21:14:19',                                                                                             
-    md5: '120764428b7105fd0e46af3a3ffea817'                                                                                       
-  },                                                                                                                              
-  {                                                                                                                               
-    metadata: {                                                                                                                   
-      text: '#Политика  Киев будет расценивать признание Москвой ДНР и ЛНР как выход РФ из Минских соглашений   глава МИД Украины',                                                                                                                                 
-      html: `<div class="tgme_widget_message_text js-message_text" dir="auto"><a href="?q=%23%D0%9F%D0%BE%D0%BB%D0%B8%D1%82%D0%B8%D0%BA%D0%B0">#Политика</a><br><i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/E29AA1.png')"><b>⚡i      
-> <b>Киев будет расценивать признание Москвой ДНР и ЛНР как выход РФ из Минских соглашений </b>— глава МИД Украины</div>`,        
-      publishedAt: '2022-02-15 12:30:06'                                                                                          
-    },                                                                                                                            
-    type: 'telegram',                                                                                                             
-    channel: 'AK47pfl',                                                                                                           
-    url: 'https://t.me/s/AK47pfl',                                                                                                
-    createdAt: '2022-02-16 21:14:19',                                                                                             
-    md5: '5f0f6a2c05c60f41e385c650f76b9d46'                                                                                       
-  },                                                                                                                              
-  {                                                                                                                               
-    metadata: {                                                                                                                   
-      text: '  Российский рынок реагирует хорошим ростом на любые новости о деэскалации. Российский рынок сегодня показывает значительный рост на фоне отвода части войск РФ: индекс Мосбиржи +3.5%, РТС +5%.  Большинство акций российского рынка закрыли пятничное падение на обострении геополитической обстановки. Геополитика остается главным драйвером движения рынков.#рынок_рф@AK47pfl',     
-      html: `<div class="tgme_widget_message_text js-message_text" dir="auto"><b><i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09F87B7F09F87BA.png')"><b>��</b></i> Российский рынок реагирует хорошим   ростом на любые новости о деэскалации. </b>Российский рынок сегодня показывает значительный рост на фоне отвода части войск РФ: индекс Мосбиржи +3.5%, РТС +5%. 
- Большинство акций российского рынка закрыли пятничное падение на обострении геополитической обстановки. Геополитика остается главным драйвером движения рынков.<br><br><a href="?q=%23%D1%80%D1%8B%D0%BD%D0%BE%D0%BA_%D1%80%D1%84">#рынок_рф</a><br><a href="https://t.me/AK47pfl" target="_blank">@AK47pfl</a></div>`,                                                                              
-      publishedAt: '2022-02-15 16:51:47'                                                                                          
-    },                                                                                                                            
-    type: 'telegram',                                                                                                             
-    channel: 'AK47pfl',                                                                                                           
-    url: 'https://t.me/s/AK47pfl',                                                                                                
-    createdAt: '2022-02-16 21:14:19',                                                                                             
-    md5: '2a303bcf68b4ed98b22854f95de1835e'                                                                                       
-  },                                                                                                                              
-  {                                                                                                                               
-    metadata: {                                                                                                                   
-      text: '  Топ-30 российских компаний по капитализации. По состоянию на 15 февраля 2021 (в $ млрд), а также изменение их места в рейтинге с 17 ноября 2021 года.1. Газпром (GAZP) 103.52. Сбер (SBER) 80.23. Роснефть (ROSN) 78.94. Новатэк (NVTK) 64.35. Лукойл (LKOH) 64.06. Норникель (GMKN) 44.47. Газпром-нефть (SIBN) 32.38. Полюс (PLZL) 22.59. Сургут (SNGS) 20.7  +110. НЛМК (NLMK) 18.5 
- +311. Яндекс (YNDX) 18.5  -212. Северсталь (CHMF) 18.113. Русал (RUAL) 17.3  +214. Татнефть (TATN) 15.1 15. Транснефть (TRNF) 14.5  +116. TCS Group (TCSG) 14.2  -517. Алроса (ALRS) 11.218. ММК (MAGN) 9.6  +219. Фосагро (PHOR) 9.0  +320. Акрон (AKRN) 8.4  +921. ПИК (PIKK) 8.2  -322. En+ (ENPG) 8.1  +623. МТС (MTSS) 7.7  +324. ВСМПО(VSMO) 7.4  +625. Полиметалл (POLY) 7.2  -626. ВТБ (VTBR) 7.0  -527. Магнит (MGNT) 7.0  -328. Евраз (EVR) 6.5  -1029. X5 Retail (FIVE) 6.4  -330. Fix Price (FIXP) 5.3  Из топ-30 выпал Arrival с $2.5 млрд капитализации.Капитализация компаний по состоянию на 17 ноября 2021   здесь.#цифры@AK47pfl',                     
-      html: `<div class="tgme_widget_message_text js-message_text" dir="auto"><i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09F938C.png')"><b>�</b></i> <b>Топ-30 российских компаний по капитализации. </b>По состоянию на 15 февраля 
- 2021 (в $ млрд), а также изменение их места в рейтинге с 17 ноября 2021 года.<br><br>1. Газпром (<a href="http://putinomics.ru/dashboard/GAZP/MOEX?utm_source=tg&amp;utm_medium=social&amp;utm_campaign=rdv" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">GAZP</a>) 103.5<br>2. Сбер (<a href="http://putinomics.ru/dashboard/SBER/MOEX?utm_source=tg&amp;utm_medium=social&amp;utm_campaign=rdv" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">SBER</a>) 80.2<br>3. Роснефть (<a href="http://putinomics.ru/dashboard/ROSN/MOEX?utm_source=tg&amp;utm_medium=social&amp;utm_campaign=rdv" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">ROSN</a>) 78.9<br>4. Новатэк (<a href="http://putinomics.ru/dashboard/NVTK/MOEX?utm_source=tg&amp;utm_medium=social&amp;utm_campaign=rdv" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">NVTK</a>) 64.3<br>5. Лукойл (<a href="http://putinomics.ru/dashboard/LKOH/MOEX?utm_source=tg&amp;utm_medium=social&amp;utm_campaign=rdv" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">LKOH</a>) 64.0<br>6. Норникель (<a href="http://putinomics.ru/dashboard/GMKN/MOEX?utm_source=tg&amp;utm_medium=social&amp;utm_campaign=rdv" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">GMKN</a>) 44.4<br>7. Газпром-нефть (<a href="http://putinomics.ru/dashboard/SIBN/MOEX?utm_source=tg&amp;utm_medium=social&amp;utm_campaign=rdv" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">SIBN</a>) 32.3<br>8. Полюс (<a href="http://putinomics.ru/dashboard/PLZL/MOEX?utm_source=tg&amp;utm_medium=social&amp;utm_campaign=rdv" 
-target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">PLZL</a>) 22.5<br>9. Сургут (<a href="http://putinomics.ru/dashboard/SNGS/MOEX?utm_source=tg&amp;utm_medium=social&amp;utm_campaign=rdv" target="_blank" rel="noopener" 
-onclick="return confirm('Open this link?\\n\\n'+this.href);">SNGS</a>) 20.7 <i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09F94BA.png')"><b>�</b></i>+1<br>10. НЛМК (<a href="http://putinomics.ru/dashboard/NLMK/MOEX?utm_source=tg&a 
-mp;utm_medium=social&amp;utm_campaign=rdv" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">NLMK</a>) 18.5 <i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09F94BA.png')"><b>�</b></i>+3<br>1 
-1. Яндекс (<a href="http://putinomics.ru/dashboard/YNDX/MOEX?utm_source=tg&amp;utm_medium=social&amp;utm_campaign=rdv" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">YNDX</a>) 18.5 <i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09F94BB.png')"><b>�</b></i>-2<br>12. Северсталь (<a href="http://putinomics.ru/dashboard 
-/CHMF/MOEX?utm_source=tg&amp;utm_medium=social&amp;utm_campaign=rdv" target="_blank" rel="noopener" onclick="return confirm('Open 
-this link?\\n\\n'+this.href);">CHMF</a>) 18.1<br>13. Русал (<a href="http://putinomics.ru/dashboard/RUAL/MOEX?utm_source=tg&amp;utm_medium=social&amp;utm_campaign=rdv" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">RUAL</a>) 17.3 <i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09F94BA.png')"><b>�</b></i>+2<br>14. Та 
-тнефть (<a href="http://putinomics.ru/dashboard/TATN/MOEX?utm_source=tg&amp;utm_medium=social&amp;utm_campaign=rdv" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">TATN</a>) 15.1 <br>15. Транснефть (TRNF) 14.5 <i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09F94BA.png')"><b>�</b></i>+1<br>16. TCS Group (<a href="htt 
-p://putinomics.ru/dashboard/TCSG/MOEX?utm_source=tg&amp;utm_medium=social&amp;utm_campaign=rdv" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">TCSG</a>) 14.2 <i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09F94BB.png')"><b>�</b></i>-5<br>17. Алроса (<a href="http://putinomics.ru/dashboard/ALRS/MOEX?utm_source=tg&am 
-p;utm_medium=social&amp;utm_campaign=rdv" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">ALRS</a>) 11.2<br>18. ММК (<a href="http://putinomics.ru/dashboard/MAGN/MOEX?utm_source=tg&amp;utm_medium=social&amp;utm_campaign=rdv" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">MAGN</a>) 9.6 <i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09F94BA.png')"><b>�</b></i>+2<br>19. Фосагро (<a href="http://putinom 
-ics.ru/dashboard/PHOR/MOEX?utm_source=tg&amp;utm_medium=social&amp;utm_campaign=rdv" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">PHOR</a>) 9.0 <i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09F94BA.png')"><b>�</b></i>+3<br>20. Акрон (<a href="http://putinomics.ru/dashboard/AKRN/MOEX?utm_source=tg&amp;utm_medium= 
-social&amp;utm_campaign=rdv" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">AKRN</a>) 8.4 <i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09F94BA.png')"><b>�</b></i>+9<br>21. ПИК (<a href 
-="http://putinomics.ru/dashboard/PIKK/MOEX?utm_source=tg&amp;utm_medium=social&amp;utm_campaign=rdv" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">PIKK</a>) 8.2 <i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09F94BB.png')"><b>�</b></i>-3<br>22. En+ (<a href="http://putinomics.ru/dashboard/ENPG/MOEX?utm_source=tg&a 
-mp;utm_medium=social&amp;utm_campaign=rdv" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">ENPG</a>) 8.1 <i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09F94BA.png')"><b>�</b></i>+6<br>23 
-. МТС (<a href="http://putinomics.ru/dashboard/MTSS/MOEX?utm_source=tg&amp;utm_medium=social&amp;utm_campaign=rdv" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">MTSS</a>) 7.7 <i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09F94BA.png')"><b>�</b></i>+3<br>24. ВСМПО(<a href="http://putinomics.ru/dashboard/VSMO/MOEX? 
-utm_source=tg&amp;utm_medium=social&amp;utm_campaign=rdv" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">VSMO</a>) 7.4 <i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09F94BA.png')"><b>�< 
-/b></i>+6<br>25. Полиметалл (<a href="http://putinomics.ru/dashboard/POLY/MOEX?utm_source=tg&amp;utm_medium=social&amp;utm_campaign=rdv" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">POLY</a>) 7.2 <i class="emoji" 
-style="background-image:url('//telegram.org/img/emoji/40/F09F94BB.png')"><b>�</b></i>-6<br>26. ВТБ (<a href="http://putinomics.ru 
-/dashboard/VTBR/MOEX?utm_source=tg&amp;utm_medium=social&amp;utm_campaign=rdv" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">VTBR</a>) 7.0 <i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09F94BB.png')"><b>�</b></i>-5<br>27. Магнит (<a href="http://putinomics.ru/dashboard/MGNT/MOEX?utm_source=tg&amp;utm_medium=socia 
-l&amp;utm_campaign=rdv" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">MGNT</a>) 7.0 
-<i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09F94BB.png')"><b>�</b></i>-3<br>28. Евраз (EVR) 6.5 < 
-i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09F94BB.png')"><b>�</b></i>-10<br>29. X5 Retail (<a hre 
-f="http://putinomics.ru/dashboard/FIVE/MOEX?utm_source=tg&amp;utm_medium=social&amp;utm_campaign=rdv" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">FIVE</a>) 6.4 <i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09F94BB.png')"><b>�</b></i>-3<br>30. Fix Price (<a href="http://putinomics.ru/dashboard/FIXP/MOEX?utm_sour 
-ce=tg&amp;utm_medium=social&amp;utm_campaign=rdv" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">FIXP</a>) 5.3 <i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09F8695.png')"><b>�</b></i>< 
-br><br>Из топ-30 выпал Arrival с $2.5 млрд капитализации.<br><br>Капитализация компаний по состоянию на 17 ноября 2021 – <a href="https://t.me/AK47pfl/10318" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">здесь</a>.<br><br><a href="?q=%23%D1%86%D0%B8%D1%84%D1%80%D1%8B">#цифры</a><br><a href="https://t.me/AK47pfl" target="_blank">@AK47pfl</a></div>`,                                                                                                                            
-      publishedAt: '2022-02-15 17:28:37'                                                                                          
-    },                                                                                                                            
-    type: 'telegram',                                                                                                             
-    channel: 'AK47pfl',                                                                                                           
-    url: 'https://t.me/s/AK47pfl',                                                                                                
-    createdAt: '2022-02-16 21:14:19',                                                                                             
-    md5: 'c7f4b9e3ecaaa1d1b283e9e94d728a55'                                                                                       
-  },                                                                                                                              
-  {                                                                                                                               
-    metadata: {                                                                                                                   
-      text: '  Топ-30 российских компаний по капитализации. По состоянию на 15 февраля 2021 (в $ млрд), а также изменение их места в рейтинге с 17 ноября 2021 года.  1. Газпром (GAZP) 103.5 2. Сбер (SBER) 80.2 3. Роснефть (ROSN) 78.9 4. Новатэк (NVTK) 64.3 5. 
-Лукойл (LKOH) ',                                                                                                                  
-      html: `<div class="tgme_widget_message_text js-message_reply_text" dir="auto"><i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09F938C.png')"><b>�</b></i> Топ-30 российских компаний по капитализации. По состоянию на 15 февраля  
-2021 (в $ млрд), а также изменение их места в рейтинге с 17 ноября 2021 года.  1. Газпром (GAZP) 103.5 2. Сбер (SBER) 80.2 3. Роснефть (ROSN) 78.9 4. Новатэк (NVTK) 64.3 5. Лукойл (LKOH)…</div>`,                                                                 
-      publishedAt: '2022-02-15 17:44:09'                                                                                          
-    },                                                                                                                            
-    type: 'telegram',                                                                                                             
-    channel: 'AK47pfl',                                                                                                           
-    url: 'https://t.me/s/AK47pfl',                                                                                                
-    createdAt: '2022-02-16 21:14:19',                                                                                             
-    md5: 'e45148a622d0029f2301e692c8c86aae'                                                                                       
-  },                                                                                                                              
-  {                                                                                                                               
-    metadata: {                                                                                                                   
-      text: '  Индикатор ЖиС Россия. 16.02.2022.Текущее настроение: Спокойствие.Индикатор ЖиС помогает выбрать лучшие периоды для 
-покупки и продажи акций. Например, при экстремальной жадности на рынках (значение индекса выше 80 пунктов) лучше продавать активы, а не покупать их.  Подробнее об индикаторе.#morning #ЖиС@AK47pfl',                                                               
-      html: `<div class="tgme_widget_message_text js-message_text" dir="auto"><i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/E29A96.png')"><b>⚖.                                                                                         
-<br><br><b>Индикатор ЖиС помогает выбрать лучшие периоды для покупки и продажи акций.</b> Например, при экстремальной жадности на 
-рынках (значение индекса выше 80 пунктов) лучше продавать активы, а не покупать их.<br><i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09F9189.png')"><b>�</b></i> <a href="https://t.me/AK47pfl/5166" target="_blank" rel="noopener" on 
-click="return confirm('Open this link?\\n\\n'+this.href);">Подробнее об индикаторе</a>.<br><br><a href="?q=%23morning">#morning</a> <a href="?q=%23%D0%96%D0%B8%D0%A1">#ЖиС</a><br><a href="https://t.me/AK47pfl" target="_blank">@AK47pfl</a></div>`,              
-      publishedAt: '2022-02-16 07:00:00'                                                                                          
-    },                                                                                                                            
-    type: 'telegram',                                                                                                             
-    channel: 'AK47pfl',                                                                                                           
-    url: 'https://t.me/s/AK47pfl',                                                                                                
-    createdAt: '2022-02-16 21:14:19',                                                                                             
-    md5: '1c605fe2062d0daf6151ffffae8bdc59'                                                                                       
-  },                                                                                                                              
-  {                                                                                                                               
-    metadata: {                                                                                                                   
-      text: '  16.02.2022  Главные темы:  Байден заявил о готовности договариваться по Украине и безопасности в Европе.  Блинкен не исключил «военную агрессию» России против Украины на этой неделе.  CNN: эскалация на Украине грозит США ростом инфляции более чем на 10%.  За чем следить:  Переговоры Путина и президента Бразилии.  Новатэк (NVTK): МСФО за 2021 год.  10:00 Великобритания: ИПЦ в январе.  16:30 США: индекс розничных продаж в январе.  18:30 США: запасы сырой нефти.#morning @AK47pfl',                       
-      html: `<div class="tgme_widget_message_text js-message_text" dir="auto"><i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/E29880.png')"><b>☀a                                                                                         
-m.org/img/emoji/40/F09F93B0.png')"><b>�</b></i> <b>Главные</b> <b>темы:</b><br>• Байден <a href="https://vedomosti.ru/politics/ar 
-ticles/2022/02/16/909492-baiden-o-gotovnosti-dogovarivatsya" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">заявил</a> о готовности договариваться по Украине и безопасности в Европе.<br>• Блинкен <a href="https://t.me/cbrstocks/31986" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">не исключил</a> «военную агрессию» России против Украины на этой неделе.<br>• CNN: эскалация на Украине <a href="https://t.me/cbrstocks/31987" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">грозит</a> США ростом инфляции более чем на 10%.<br><br><i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09F9181.png')"><b>�</b></i> <b>За чем сле 
-дить:</b><br>• Переговоры Путина и президента Бразилии.<br>• Новатэк (<a href="http://putinomics.ru/dashboard/NVTK/MOEX?utm_source=tg&amp;utm_medium=social&amp;utm_campaign=rdv" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">NVTK</a>): МСФО за 2021 год.<br>• 10:00 Великобритания: ИПЦ в январе.<br>• 16:30 США: индекс розничных продаж в январе.<br>• 18:30 США: запасы сырой нефти.<br><br><a href="?q=%23morning">#morning</a> <br><a href="https://t.me/AK47pfl" target="_blank">@AK47pfl</a></div>`,                                                                                                             
-      publishedAt: '2022-02-16 08:30:40'                                                                                          
-    },                                                                                                                            
-    type: 'telegram',                                                                                                             
-    channel: 'AK47pfl',                                                                                                           
-    url: 'https://t.me/s/AK47pfl',                                                                                                
-    createdAt: '2022-02-16 21:14:19',                                                                                             
-    md5: 'f9a441c8d486a88e28c111a2693eae86'                                                                                       
-  },                                                                                                                              
-  {                                                                                                                               
-    metadata: {                                                                                                                   
-      text: '  В росте криптовалют можно участвовать через акции.Связь (корреляция)  itcoin  и индекса NASDAQ достигла максимума.Сторонниками криптовалют Биткойн отстаивается как актив, не связанный с традиционными финансовыми рынками, однако связь с ними продолжает расти: корреляция Биткойна и индекса NASDAQ достигла уже 0.53.Коэффициент корреляции 1 означает, что активы движутся в одном направлении, -1   в противоположных направлениях.@AK47pfl',                                                                     
-      html: `<div class="tgme_widget_message_text js-message_text" dir="auto"><i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09F94A5.png')"><b>�</b></i> <b>В росте криптовалют можно участвовать через акции.</b><br><b>Связь (корреля 
-ция) ₿itcoin  и индекса NASDAQ</b> <b>достигла максимума.</b><br><br>Сторонниками криптовалют Биткойн отстаивается как актив, не связанный с традиционными финансовыми рынками, однако связь с ними продолжает расти: корреляция Биткойна и индекса NASDAQ достигла 
-уже 0.53.<br><br><i>Коэффициент корреляции 1 означает, что активы движутся в одном направлении, </i>-<i>1 </i>— <i>в противоположных направлениях.</i><br><br><a href="https://t.me/AK47pfl" target="_blank">@AK47pfl</a></div>`,                                   
-      publishedAt: '2022-02-16 09:43:04'                                                                                          
-    },                                                                                                                            
-    type: 'telegram',                                                                                                             
-    channel: 'AK47pfl',                                                                                                           
-    url: 'https://t.me/s/AK47pfl',                                                                                                
-    createdAt: '2022-02-16 21:14:19',                                                                                             
-    md5: 'd251421289e00b395bcddd7cb9f45aee'                                                                                       
-  },                                                                                                                              
-  {                                                                                                                               
-    metadata: {                                                                                                                   
-      text: '  Геополитический апдейт: пока ситуация развивается по дипломатическому пути.  Последние события:  Байден: говорил с 
-Путиным, чтобы дать понять, что мы готовы продолжать дипломатию на высоком уровне.  Минобороны РФ: военные возвращаются после учений в Крыму.  Песков про «вторжение РФ»: лучше завести будильники и самим убедиться [в его отсутствии].  Макрон про ЛДНР: мы остаемся бдительными и просим [Путина] не выполнять просьбу Думы. Ожидается сегодня:  Переговоры Путина и президента Бразилии.@AK47pfl',      html: `<div class="tgme_widget_message_text js-message_text" dir="auto"><i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09F8C8F.png')"><b>�</b></i> <b>Геополитический апдейт:</b> <b>пока ситуация развивается по дипломатическом 
-у пути.</b><br><br><i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09FA58A.png')"><b>�</b></i><b> Посл 
-едние события:</b><br>• <a href="https://www.youtube.com/watch?v=lW4fuHit9HI" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">Байден</a>: говорил с Путиным, чтобы дать понять, что мы готовы продолжать дипломатию на высоком уровне.<br>• <a href="https://ria.ru/20220216/ucheniya-1773047613.html" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">Минобороны РФ</a>: военные возвращаются после учений в Крыму.<br>• <a href="https://ria.ru/20220216/vtorzhenie-1773024868.html" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">Песков про «вторжение РФ»</a>: лучше завести будильники и самим убедиться [в его отсутствии].<br>• <a href="https://edition.cnn.com/europe/live-news/ukraine-russia-news-02-15-22-intl/index.html" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">Макрон про ЛДНР</a>: мы остаемся бдительными и просим [Путина] не выполнять просьбу Думы.<br><br><i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/E29D97.png')"><b>❗b                                         
-r>• Переговоры Путина и президента Бразилии.<br><br><a href="https://t.me/AK47pfl" target="_blank">@AK47pfl</a></div>`,           
-      publishedAt: '2022-02-16 10:36:22'                                                                                          
-    },                                                                                                                            
-    type: 'telegram',                                                                                                             
-    channel: 'AK47pfl',                                                                                                           
-    url: 'https://t.me/s/AK47pfl',                                                                                                
-    createdAt: '2022-02-16 21:14:19',                                                                                             
-    md5: 'fcf40e4df055d5a396ade4c9862a48a5'                                                                                       
-  },                                                                                                                              
-  {                                                                                                                               
-    metadata: {                                                                                                                   
-      text: '#Политика  Все российские военные покинут Белоруссию после учений   МИД Белоруссии',                                 
-      html: `<div class="tgme_widget_message_text js-message_text" dir="auto"><a href="?q=%23%D0%9F%D0%BE%D0%BB%D0%B8%D1%82%D0%B8%D0%BA%D0%B0">#Политика</a><br><b><i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09F87A7F09F87BE.png')"><b>��</b></i><i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09F87B7F0  9F87BA.png')"><b>��</b></i>   
-Все российские военные покинут Белоруссию после учений</b> — МИД Белоруссии</div>`,                                               
-      publishedAt: '2022-02-16 10:52:54'                                                                                          
-    },                                                                                                                            
-    type: 'telegram',                                                                                                             
-    channel: 'AK47pfl',                                                                                                           
-    url: 'https://t.me/s/AK47pfl',                                                                                                
-    createdAt: '2022-02-16 21:14:19',                                                                                             
-    md5: '90f70abaf3aa4f6bd73e17228cfaa8b4'                                                                                       
-  },                                                                                                                              
-  {                                                                                                                               
-    metadata: {                                                                                                                   
-      text: '  Пузыри сдуваются одинаково. Nasdaq 100 в 1998-2001 годах (верхний график) и ARK Innovation ETF в 2019-2022 годах (нижний график).@AK47pfl',                                                                                                          
-      html: `<div class="tgme_widget_message_text js-message_text" dir="auto"><i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09F94A5.png')"><b>�</b></i><i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09F8 
-E88.png')"><b>�</b></i><i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09F938C.png')"><b>�</b></i> <b  
->Пузыри сдуваются одинаково.</b> Nasdaq 100 в 1998-2001 годах (верхний график) и ARK Innovation ETF в 2019-2022 годах (нижний график).<br><br><a href="https://t.me/AK47pfl" target="_blank">@AK47pfl</a></div>`,                                                   
-      publishedAt: '2022-02-16 11:34:48'                                                                                          
-    },                                                                                                                            
-    type: 'telegram',                                                                                                             
-    channel: 'AK47pfl',                                                                                                           
-    url: 'https://t.me/s/AK47pfl',                                                                                                
-    createdAt: '2022-02-16 21:14:19',                                                                                             
-    md5: '2f2ac8c8ce8a769d61aff7560edc8546'                                                                                       
-  },                                                                                                                              
-  {                                                                                                                               
-    metadata: {                                                                                                                   
-      text: '  Русские физики героически выкупают продажи иностранцев уже с октября.Согласно докладу ЦБ РФ в январе нерезиденты (западные фонды) продали российские бумаги на 111.1 млрд руб.Основной объем покупок осуществили физические лица на сумму 98.1 млрд  
-руб. и российские фонды (в основном деньги тех же физиков)   ещё на 44.9 млрд рублей.Сколько ещё денег готовы вложить россияне?.. 
- Хватит ли этих средств, чтобы дождаться возвращения иностранцев?..@AK47pfl',                                                     
-      html: `<div class="tgme_widget_message_text js-message_text" dir="auto"><i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09F92AA.png')"><b>�</b></i> <b>Русские физики героически выкупают продажи иностранцев</b> <b>уже с октября 
-.</b><br><br>Согласно <a href="https://cbr.ru/Collection/Collection/File/39795/ORFR_2022-01.pdf" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">докладу ЦБ РФ</a> в январе нерезиденты (западные фонды) продали российские бумаги на 111.1 млрд руб.<br><br>Основной объем покупок осуществили физические лица на сумму 98.1 млрд руб. и российские фонд 
-ы (в основном деньги тех же физиков) – ещё на 44.9 млрд рублей.<br><br><i>Сколько ещё денег готовы вложить россияне?.. <br>Хватит 
- ли этих средств, чтобы дождаться возвращения иностранцев?..</i><br><br><a href="https://t.me/AK47pfl" target="_blank">@AK47pfl</a></div>`,                                                                                                                         
-      publishedAt: '2022-02-16 14:15:14'                                                                                          
-    },                                                                                                                            
-    type: 'telegram',                                                                                                             
-    channel: 'AK47pfl',                                                                                                           
-    url: 'https://t.me/s/AK47pfl',                                                                                                
-    createdAt: '2022-02-16 21:14:19',                                                                                             
-    md5: 'd74f02d9078d0ea2091544c710b0ca57'                                                                                       
-  },                                                                                                                              
-  {                                                                                                                               
-    metadata: {                                                                                                                   
-      text: 'РДВ   это совершенно новое явление в мире инвестиций. Впервые в истории каждый желающий, читая канал, может стать управляющим собственного первоклассного инвестиционного фонда.  Премиум доступ к знаниям РДВ: @RDVPREMIUMbot  Партнёрский сайт для думающих инвесторов: putinomics.ru  РынкиДеньгиВласть: t.me/AK47pfl  Чат РДВ: http://t.me/AK47pflchat',                             
-      html: `<div class="tgme_widget_message_text js-message_text" dir="auto"><b>РДВ — это совершенно новое явление в мире инвестиций. </b>Впервые в истории каждый желающий, читая канал, может стать управляющим собственного первоклассного инвестиционного фонда.<br><br><i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09F93A3.png')"><b>�</b></i> <b>Премиум доступ 
- к знаниям РДВ:</b> <a href="https://t.me/RDVPREMIUMbot" target="_blank">@RDVPREMIUMbot</a><br><br><i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09FA7A0.png')"><b>�</b></i> <b>Партнёрский сайт для думающих инвесторов:</b> <a href= 
-"http://putinomics.ru/" target="_blank" rel="noopener">putinomics.ru</a><br><br><b><i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09F8F86.png')"><b>�</b></i> РынкиДеньгиВласть:</b> <a href="http://t.me/AK47pfl" target="_blank" rel= 
-"noopener">t.me/AK47pfl</a><br><br><b><i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09F97A3.png')"><b>�</b></i> Чат РДВ: </b><a href="http://t.me/AK47pflchat" target="_blank" rel="noopener">http://t.m e/AK47pflchat</a></div>`,     
-      publishedAt: '2022-02-16 16:02:23'                                                                                          
-    },                                                                                                                            
-    type: 'telegram',                                                                                                             
-    channel: 'AK47pfl',                                                                                                           
-    url: 'https://t.me/s/AK47pfl',                                                                                                
-    createdAt: '2022-02-16 21:14:19',                                                                                             
-    md5: '098aea57d88be269520d0cba33625cd6'                                                                                       
-  },                                                                                                                              
-  {                                                                                                                               
-    metadata: {                                                                                                                   
-      text: '  Бегство иностранных инвесторов: как долго могут продолжаться продажи западных фондов.Ранее: русские физики выкупают продажи иностранцев.На примере Китая видно, что продажи нерезидентов (западных фондов) могут оказывать давление на рынок целый год. Влияние США (в случае Китая - угроза делистинга и торговой войны, в случае России - угроза санкций) усиливает или даже вызывает падение национальных фондовых рынков.На графике   динамика акций крупнейших компаний Китая с листингом в США в 2021 году.@AK47pfl',                                                                                                                                
-      html: `<div class="tgme_widget_message_text js-message_text" dir="auto"><i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09F8F83F09F8FBDE2808DE29982.png')"><b>��р                                                                  
-одолжаться продажи западных фондов.</b><br>Ранее: <a href="https://t.me/AK47pfl/11145" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">русские физики выкупают продажи иностранцев.</a><br><br>На примере Китая видно, что продажи нерезидентов (западных фондов) могут оказывать давление на рынок целый год. <br><br>Влияние США (в случае Китая - угроза делистинга и торговой войны, в случае России - угроза санкций) усиливает или даже вызывает падение национальных фондовых рынков.<br><br><i>На графике — динамика акций крупнейших компаний Китая с <a href="https://www.uscc.gov/sites/default/files/2021-05/Chinese_Companies_on_US_Stock_Exchanges_5-2021.pdf" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">листингом</a> в США</i> <i>в 2021 году.</i><br><br><a href="https://t.me/AK47pfl" target="_blank">@AK47pfl</a></div>`,   
-      publishedAt: '2022-02-16 16:25:54'                                                                                          
-    },                                                                                                                            
-    type: 'telegram',                                                                                                             
-    channel: 'AK47pfl',                                                                                                           
-    url: 'https://t.me/s/AK47pfl',                                                                                                
-    createdAt: '2022-02-16 21:14:19',                                                                                             
-    md5: 'f91224eeb48130078018f0c2e6ec97e8'                                                                                       
-  },                                                                                                                              
-  {                                                                                                                               
-    metadata: {                                                                                                                   
-      text: '  Как выросли российские акции в $ с пика санкционной паники 24 января? Индекс РТС прибавил +18%.Топ-10 выросших акций:  Распадская (RASP) +43%  Озон (OZON) +39%  HeadHunter (HHRU) +35%  Русал (RUAL) +33%  Яндекс (YNDX) +33%  ТКС (TCSG) +26%  НЛМК (NLMK) +24%  Северсталь (CHMF) +24%  FixPrice (FIXP) +24%  Сбербанк (SBER) +24%10 акций показавших наименьшую доходность:  Сургут преф (SNGSP) +9%  ВТБ (VTBR) +9%  Белуга (BELU) +7%  Ростелеком (RTKM) +7%  ИнтерРАО (IRAO) +7%  ФСК (FEES) +5%  СовКомФлот (FLOT) +4%  Полиметалл (POLY) +3%  МосБиржа (MOEX) +3%  ПИК (PIKK) -4%#цифры @AK47pfl',                                                
-      html: `<div class="tgme_widget_message_text js-message_text" dir="auto"><i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09F938C.png')"><b>�</b></i> <b>Как выросли российские акции в $ с пика санкционной паники 24 января?</b> И 
-ндекс РТС прибавил +18%.<br><br><b>Топ-10 выросших акций:</b><br>• Распадская (<a href="https://putinomics.ru/dashboard/RASP/MOEX" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">RASP</a>) +43%<br>• Озон (<a href="https://putinomics.ru/dashboard/OZON/MOEX" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">OZON</a>) +39%<br>• HeadHunter (<a href="https://putinomics.ru/dashboard/HHRU/MOEX" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">HHRU</a>) +35%<br>• Русал (<a href="https://putinomics.ru/dashboard/RUAL/MOEX" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">RUAL</a>) +33%<br>• Яндекс (<a href="https://putinomics.ru/dashboard/YNDX/MOEX" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">YNDX</a>) +33%<br>• ТКС (<a href="https://putinomics.ru/dashboard/TCSG/MOEX" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">TCSG</a>) +26%<br>• НЛМК (<a href="https://putinomics.ru/dashboard/NLMK/MOEX" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">NLMK</a>) +24%<br>• Северсталь (<a href="https://putinomics.ru/dashboard/CHMF/MOEX" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">CHMF</a>) +24%<br>• FixPrice (<a href="https://putinomics.ru/dashboard/FIXP/MOEX" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">FIXP</a>) +24%<br>• Сбербанк (<a href="https://putinomics.ru/dashboard/SBER/MOEX" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">SBER</a>) +24%<br><br><b>10 акций показавших 
-наименьшую доходность:</b><br>• Сургут преф (<a href="https://putinomics.ru/dashboard/SNGSP/MOEX" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">SNGSP</a>) +9%<br>• ВТБ (<a href="https://putinomics.ru/dashboard/VTBR/MOEX" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">VTBR</a>) +9%<br>• Белуга (<a href="https://putinomics.ru/dashboard/BELU/MOEX" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">BELU</a>) +7%<br>• Ростелеком (<a href="https://putinomics.ru/dashboard/RTKM/MOEX" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">RTKM</a>) +7%<br>• ИнтерРАО (<a href="https://putinomics.ru/dashboard/IRAO/MOEX" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">IRAO</a>) +7%<br>• ФСК (<a href="https://putinomics.ru/dashboard/FEES/MOEX" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">FEES</a>) +5%<br>• СовКомФлот (<a href="https://putinomics.ru/dashboard/FLOT/MOEX" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">FLOT</a>) +4%<br>• Полиметалл (<a href="https://putinomics.ru/dashboard/POLY/MOEX" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">POLY</a>) +3%<br>• МосБиржа (<a href="https://putinomics.ru/dashboard/MOEX/MOEX" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">MOEX</a>) +3%<br>• ПИК (<a href="https://putinomics.ru/dashboard/PIKK/MOEX" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">PIKK</a>) -4%<br><br><a href="?q=%23%D1%86%D0%B8%D1%84%D1%80%D1%8B">#цифры</a> <br><a href="https://t.me/AK47pfl" target="_blank">@AK47pfl</a></div>`,                                                               
-      publishedAt: '2022-02-16 17:10:07'                                                                                          
-    },                                                                                                                            
-    type: 'telegram',                                                                                                             
-    channel: 'AK47pfl',                                                                                                           
-    url: 'https://t.me/s/AK47pfl',                                                                                                
-    createdAt: '2022-02-16 21:14:19',                                                                                             
-    md5: '5db86dad434c5f12af908c78e9f12c1d'                                                                                       
-  },                                                                                                                              
-  {                                                                                                                               
-    metadata: {                                                                                                                   
-      text: '  Главное по секторам российского рынка  Нефтяной сектор: Hold. Цены на нефть продолжают держаться выше $90 за баррель. Большое влияние на цены оказывает напряженность на границе России и Украины. Параллельно с этим рынок продолжает внимательно следить за развитием ядерной сделки с Ираном, которая, по последним новостям, движется к позитивному окончанию.  Здравоохранение: Buy. Медицина   один из лучших секторов, чтобы сберечь деньги от высокой инфляции (РФ, США). Кроме того, в медицине все еще большие 
-возможности для роста:  Мать и дитя (MDMG) растет темпами 30% в год и будет наиболее устойчивой к инфляции компанией в РФ, считает источник РДВ.  Банковский сектор: Hold. ЦБ РФ в пятницу снова повысил ключевую ставку и повысил прогноз по ставке в 2022 году. На этом фоне, акции банков, покупающихся в ожидании высоких дивидендов, теряют привлекательность. Но, также, на этой неделе ослабло 
-политическое давление, благодаря началу отвода войск РФ.#Сектор #ROSN #LKOH #TATN #SIBN #SNGS #ISKJ #AFKS #MDMG #SBER #SBERP #VTBR #TSCG @AK47pfl',                                                                                                                 
-      html: `<div class="tgme_widget_message_text js-message_text" dir="auto"><i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/E29C85.png')"><b>✅</b></i><b> Главное по секторам российского рынка<br><br><i class="emoji" style="backgroun
-d-image:url('//telegram.org/img/emoji/40/F09F9BA2.png')"><b>�</b></i> Нефтяной сектор: Hold.</b> Це ны на нефть продолжают держаться выше $90 за баррель. Большое влияние на цены оказывает напряженность на границе России и Украины. Параллельно с этим рынок продолжает внимательно следить за развитием ядерной сделки с Ираном, которая, по последним новостям, движется к позитивному окончанию.<br><br><b><i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09F8FA5.png')"><b>�</b></i> Здравоохранение 
-</b>: <b>Buy</b>. Медицина — один из <a href="https://t.me/AK47pfl/10092" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">лучших</a> секторов, чтобы сберечь деньги от высокой инфляции (<a href="https://t.me/AK47pfl/11099" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">РФ</a>, <a href="https://t.me/AK47pfl/11074" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">США</a>). Кроме того, в медицине все еще большие возможности для роста:  Мать и дитя (<a href="https://putinomics.ru/dashboard/MDMG/MOEX?utm_source=tg&amp;utm_medium=social&amp;utm_campaign=rdv" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">MDMG</a>) <a href="https://t.me/AK47pfl/11022" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">растет</a> темпами 30% в год и будет наиболее устойчивой к инфляции компанией в РФ, считает источник РДВ.<br><br><i class="emoji" style="background-image:url('//telegram.org/img/emoji/40/F09F8FA6.png')"><b>�</b></i><b> Банковский сектор: Hold</b>.  
-ЦБ РФ в пятницу снова <a href="https://t.me/cbrstocks/31753" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">повысил</a> ключевую ставку и <a href="https://t.me/cbrstocks/31758" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">повысил</a> прогноз по ставке в 2022 году. На этом фоне, акции банков, покупающихся в ожидании высоких дивидендов, теряют привлекательность. Но, также, на этой неделе ослабло политическое давление, благодаря <a href="https://t.me/cbrstocks/31917" target="_blank" rel="noopener" onclick="return confirm('Open this link?\\n\\n'+this.href);">началу отвода войск РФ</a>.<br><br><a href="?q=%23%D0%A1%D0%B5%D0%BA%D1%82%D0%BE%D1%80">#Сектор</a> <a href="?q=%23ROSN">#ROSN</a> <a href="?q=%23LKOH">#LKOH</a> <a href="?q=%23TATN">#TATN</a> <a href="?q=%23SIBN">#SIBN</a> <a href="?q=%23SNGS">#SNGS</a> <a href="?q=%23ISKJ">#ISKJ</a> <a href="?q=%23AFKS">#AFKS</a> <a href="?q=%23MDMG">#MDMG</a> <a href="?q=%23SBER">#SBER</a> <a href="?q=%23SBERP">#SBERP</a> <a href="?q=%23VTBR">#VTBR</a> <a href="?q=%23TSCG">#TSCG</a> <br><a href="https://t.me/AK47pfl" target="_blank">@AK47pfl</a></div>`,                                                                                                      
-      publishedAt: '2022-02-16 18:00:19'                                                                                          
-    },                                                                                                                            
-    type: 'telegram',                                                                                                             
-    channel: 'AK47pfl',                                                                                                           
-    url: 'https://t.me/s/AK47pfl',                                                                                                
-    createdAt: '2022-02-16 21:14:19',                                                                                             
-    md5: '68932664eda615fc8c985ea4c06b6ff2'                                                                                       
-  }                                                                                                                               
-]                                                                                                                                 
----------------------------------------------------------------   
+---------------------------------------------------------------
+Call with params: /Users/dmytrenko.o/Documents/GitHub/scanany-scripts/test/params/telegram.params.yml
+
+
+service: 
+  scheduler:
+    task:
+      params:
+        type: telegram
+        channel: AK47pfl
+      state: planned
+
+---------------------------------------------------------------
+Scanany result:
+
+[
+ {
+  "service": {
+   "scraper": {
+    "message": {
+     "text": "  14.04.2022  ЦБ думает смягчить требования к продаже валютной выручки. Ранее Минфин обязал экспортеров продавать 80% валютной выручки.  Производители полимерной упаковки и других товаров из пластика с февраля повысили цены на продукцию на 10-50%.  Президент Байден отправляет Украине тяжелое вооружение на $800 млн. Это проверит пределы того, насколько далеко может зайти США, не втягивая себя в боевые действия.  Еврокомиссия сочла указ Путина об оплате за газ в рублях нарушением антироссийских санкций.  Третья по величине китайская нефтегазовая госкомпания CNOOC продает свои активы в Британии, США и Канаде на $3 млрд. К чему-то готовятся?.. Ожидается:  Совещание Путина по ситуации в нефтегазовой сфере.#morning@AK47pfl",
+     "html": "<div class=\"tgme_widget_message_text js-message_text\" dir=\"auto\"><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/E29880.png')\"><b>☀️</b></i> <b>14.04.2022</b><br><br><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F87B7F09F87BA.png')\"><b>🇷🇺</b></i><br>• ЦБ думает смягчить <a href=\"https://www.rbc.ru/economics/14/04/2022/6257678c9a7947700d5e841c\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">требования к продаже валютной выручки</a>. Ранее Минфин обязал экспортеров продавать 80% валютной выручки.<br>• Производители полимерной упаковки и других товаров из пластика с февраля <a href=\"https://www.vedomosti.ru/business/news/2022/04/14/918031-podorozhanii-upakovki-trub-plastika\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">повысили цены</a> на продукцию на 10-50%.<br><br><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F8C8E.png')\"><b>🌎</b></i><br>• Президент <a href=\"https://www.bloomberg.com/news/articles/2022-04-13/biden-announces-800-million-weapons-package-for-ukraine?utm_source=telegram&amp;utm_medium=msg&amp;utm_campaign=telegram\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">Байден отправляет</a> Украине <a href=\"https://t.me/cbrstocks/35340\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">тяжелое вооружение</a> на $800 млн. Это проверит пределы того, насколько далеко может зайти США, не втягивая себя в боевые действия.<br>• Еврокомиссия сочла указ Путина об оплате за газ в рублях <a href=\"https://www.bloomberg.com/news/articles/2022-04-13/eu-warns-putin-s-rubles-for-gas-demand-would-breach-sanctions\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">нарушением антироссийских санкций</a>.<br><br><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F87A8F09F87B3.png')\"><b>🇨🇳</b></i><br>• Третья по величине китайская нефтегазовая госкомпания CNOOC <a href=\"https://tass.ru/ekonomika/14372537?utm_source=yxnews&amp;utm_medium=desktop\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">продает</a> свои активы в Британии, США и Канаде на $3 млрд. К чему-то готовятся?..<br><br><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/E29D97.png')\"><b>❗️</b></i><b>Ожидается:</b><br>• Совещание Путина по ситуации в нефтегазовой сфере.<br><br><a href=\"?q=%23morning\">#morning</a><br><a href=\"https://t.me/AK47pfl\" target=\"_blank\">@AK47pfl</a></div>",
+     "publishedAt": "2022-04-14 09:30:18",
+     "index": 0,
+     "md5": "c54eed430a124b9165d429399bf5f49f"
+    },
+    "page": {
+     "title": "РынкиДеньгиВласть | РДВ",
+     "description": "<div class=\"tgme_channel_info_description\"><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F949D.png')\"><b>🔝</b></i> аналитика по российскому рынку ценных бумаг, которая ранее была доступна лишь финансовым элитам. Впереди брокеров и банков.<br><br>Стратегические вопросы: <a href=\"https://t.me/dragonwoo\" target=\"_blank\">@dragonwoo</a><br><br>Реклама - агент PR Fintech: <a href=\"https://t.me/arina_promo\" target=\"_blank\">@arina_promo</a><br><br>Сервис для инвесторов и трейдеров <a href=\"https://t.me/RDVPREMIUMbot\" target=\"_blank\">@RDVPREMIUMbot</a></div>",
+     "image": "https://cdn4.telegram-cdn.org/file/X3RZTkJ6BTu6VcpAiW3OCGxjezSTNGTyuW6BsBFNFsakzKUZyPc1c-RWWWdUic7HIDYiT5ygx44S6tAjy7L2GeNw3egyZtvz0FKkCagmo2mf3B4VZKvJ1mUVaKDiiaPwcA1xTKbxCeRfRGjmzLSesiRxu-gVrLnzD7oZ62tXaKDqaqLcw_dazSi_6rFjUnQRKoIJ2LPdPwjlHiR8cqN7VnD4RbGlNEf6h39my38JIFcdO_F28pO4_c3uds5eJVfqv3fM6WaOFonRaR3QnopWKTnU8jJTa6Vc9NfGxp9-F9MnqXYhwES98VpwgFudCUS60MrcMQSXBxS_IQOfQh_eAg.jpg"
+    }
+   },
+   "scheduler": {
+    "task": {
+     "params": {
+      "type": "telegram",
+      "channel": "AK47pfl"
+     },
+     "state": "processed",
+     "processedAt": "2022-04-15 17:38:29"
+    }
+   }
+  }
+ },
+ {
+  "service": {
+   "scraper": {
+    "message": {
+     "text": "  В российскую недвижимость могут прийти непотраченные на отдыхе и на импортные товары 4 трлн рублей.Сколько денег тратят россияне на импортные товары и за рубежом?По оценкам источников РДВ доля потребительского импорта составляет порядка 47%, это ~$140 млрд в год. Плюс россияне тратят деньги за рубежом, по некоторым оценкам это ~$35 млрд в год.Итого: $175 млрд трат в поездках за границей и на импортные товары в России. Эксперты считают, что 70% этих денег перетекут в траты внутри страны на товары-аналоги (не 100%, так как у немецких автомобилей, швейцарских часов, украшений, одежды особых аналогов в России нет).До 4.2 трлн рублей из этих денег могут пойти на покупку недвижимости. Для сравнения, весь рынок недвижимости составляет около 17 трлн рублей (см. график).@AK47pfl",
+     "html": "<div class=\"tgme_widget_message_text js-message_text\" dir=\"auto\"><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F8F97.png')\"><b>🏗</b></i> <b>В российскую недвижимость могут прийти непотраченные на отдыхе и на импортные товары 4 трлн рублей.</b><br><br><u>Сколько денег тратят россияне на импортные товары и за рубежом?</u><br><br>По оценкам источников РДВ доля потребительского импорта составляет порядка 47%, это ~$140 млрд в год. Плюс россияне тратят деньги за рубежом, по <a href=\"https://www.interfax.ru/russia/763939\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">некоторым оценкам</a> это ~$35 млрд в год.<br><br><u>Итого: $175 млрд трат в поездках за границей и на импортные товары в России.</u> Эксперты считают, что 70% этих денег перетекут в траты внутри страны на товары-аналоги (не 100%, так как у немецких автомобилей, швейцарских часов, украшений, одежды особых аналогов в России нет).<br><br><u>До 4.2 трлн рублей из этих денег <a href=\"https://t.me/AK47pfl/11869\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">могут пойти на покупку недвижимости</a></u>. Для сравнения, весь рынок недвижимости составляет около 17 трлн рублей (см. график).<br><br><a href=\"https://t.me/AK47pfl\" target=\"_blank\">@AK47pfl</a></div>",
+     "publishedAt": "2022-04-14 10:22:01",
+     "index": 1,
+     "md5": "e7fd6337e7f94c003945b1bea25e23ea"
+    },
+    "page": {
+     "title": "РынкиДеньгиВласть | РДВ",
+     "description": "<div class=\"tgme_channel_info_description\"><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F949D.png')\"><b>🔝</b></i> аналитика по российскому рынку ценных бумаг, которая ранее была доступна лишь финансовым элитам. Впереди брокеров и банков.<br><br>Стратегические вопросы: <a href=\"https://t.me/dragonwoo\" target=\"_blank\">@dragonwoo</a><br><br>Реклама - агент PR Fintech: <a href=\"https://t.me/arina_promo\" target=\"_blank\">@arina_promo</a><br><br>Сервис для инвесторов и трейдеров <a href=\"https://t.me/RDVPREMIUMbot\" target=\"_blank\">@RDVPREMIUMbot</a></div>",
+     "image": "https://cdn4.telegram-cdn.org/file/X3RZTkJ6BTu6VcpAiW3OCGxjezSTNGTyuW6BsBFNFsakzKUZyPc1c-RWWWdUic7HIDYiT5ygx44S6tAjy7L2GeNw3egyZtvz0FKkCagmo2mf3B4VZKvJ1mUVaKDiiaPwcA1xTKbxCeRfRGjmzLSesiRxu-gVrLnzD7oZ62tXaKDqaqLcw_dazSi_6rFjUnQRKoIJ2LPdPwjlHiR8cqN7VnD4RbGlNEf6h39my38JIFcdO_F28pO4_c3uds5eJVfqv3fM6WaOFonRaR3QnopWKTnU8jJTa6Vc9NfGxp9-F9MnqXYhwES98VpwgFudCUS60MrcMQSXBxS_IQOfQh_eAg.jpg"
+    }
+   },
+   "scheduler": {
+    "task": {
+     "params": {
+      "type": "telegram",
+      "channel": "AK47pfl"
+     },
+     "state": "processed",
+     "processedAt": "2022-04-15 17:38:29"
+    }
+   }
+  }
+ },
+ {
+  "service": {
+   "scraper": {
+    "message": {
+     "text": "РынкиДеньгиВласть | РДВ pinned «  The Big $hort. Стратег Credit Suisse рассуждает о закате доллара. В будущем доллара засомневался не Хазин, а Zoltan Pozsar   «дитя» денежной системы США, один из самых известных аналитиков по денежному рынку, сотрудник топ-банка, успевший поработать в Moody s »",
+     "html": "<div class=\"tgme_widget_message_text js-message_text\" dir=\"auto\"><a class=\"tgme_widget_message_author_name\" href=\"https://t.me/AK47pfl\"><span dir=\"auto\">РынкиДеньгиВласть | РДВ</span></a> pinned «<span class=\"tgme_widget_service_strong_text\" dir=\"auto\"><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F94A5.png')\"><b>🔥</b></i> The Big $hort. Стратег Credit Suisse рассуждает о закате доллара. В будущем доллара засомневался не Хазин, а Zoltan Pozsar — «дитя» денежной системы США, один из самых известных аналитиков по денежному рынку, сотрудник топ-банка, успевший поработать в Moody’s…</span>»</div>",
+     "publishedAt": "2022-04-14 11:17:11",
+     "index": 2,
+     "md5": "0b6b154b7a3a3901cce9aaa9297c3bba"
+    },
+    "page": {
+     "title": "РынкиДеньгиВласть | РДВ",
+     "description": "<div class=\"tgme_channel_info_description\"><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F949D.png')\"><b>🔝</b></i> аналитика по российскому рынку ценных бумаг, которая ранее была доступна лишь финансовым элитам. Впереди брокеров и банков.<br><br>Стратегические вопросы: <a href=\"https://t.me/dragonwoo\" target=\"_blank\">@dragonwoo</a><br><br>Реклама - агент PR Fintech: <a href=\"https://t.me/arina_promo\" target=\"_blank\">@arina_promo</a><br><br>Сервис для инвесторов и трейдеров <a href=\"https://t.me/RDVPREMIUMbot\" target=\"_blank\">@RDVPREMIUMbot</a></div>",
+     "image": "https://cdn4.telegram-cdn.org/file/X3RZTkJ6BTu6VcpAiW3OCGxjezSTNGTyuW6BsBFNFsakzKUZyPc1c-RWWWdUic7HIDYiT5ygx44S6tAjy7L2GeNw3egyZtvz0FKkCagmo2mf3B4VZKvJ1mUVaKDiiaPwcA1xTKbxCeRfRGjmzLSesiRxu-gVrLnzD7oZ62tXaKDqaqLcw_dazSi_6rFjUnQRKoIJ2LPdPwjlHiR8cqN7VnD4RbGlNEf6h39my38JIFcdO_F28pO4_c3uds5eJVfqv3fM6WaOFonRaR3QnopWKTnU8jJTa6Vc9NfGxp9-F9MnqXYhwES98VpwgFudCUS60MrcMQSXBxS_IQOfQh_eAg.jpg"
+    }
+   },
+   "scheduler": {
+    "task": {
+     "params": {
+      "type": "telegram",
+      "channel": "AK47pfl"
+     },
+     "state": "processed",
+     "processedAt": "2022-04-15 17:38:29"
+    }
+   }
+  }
+ },
+ {
+  "service": {
+   "scraper": {
+    "message": {
+     "text": "  Акции ДВМП (FESH) могут вырасти в 3 раза. Даже при ранее полученных оценках роста бизнеса на 30-40%, что очень консервативно для ДВМП, акция этой компании (по модели DCF источников РДВ) недооценена более чем в 2 раза.По мнению экспертов и источников, с которыми поговорили РДВ, в связи с текущей ситуацией в мире, бизнес вырастет на 100%, что в 2.5 раза выше консервативных оценок. В будущем для акций ДВМП это может означать кратный рост.  Справедливая цена акций ДВМП (FESH) 97 рублей, потенциал роста +180%.#FESH@AK47pfl",
+     "html": "<div class=\"tgme_widget_message_text js-message_text\" dir=\"auto\"><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/E29AA1.png')\"><b>⚡️</b></i> <b>Акции ДВМП (<a href=\"https://putinomics.ru/dashboard/FESH/MOEX\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">FESH</a>) могут вырасти в 3 раза.</b> Даже при ранее полученных оценках роста бизнеса на 30-40%, что очень консервативно для ДВМП, акция этой компании (по модели DCF источников РДВ) недооценена более чем в 2 раза.<br><br>По мнению экспертов и источников, с которыми поговорили РДВ, в связи с текущей ситуацией в мире, <b>бизнес вырастет на 100%</b>, что в 2.5 раза выше консервативных оценок. <b>В будущем для акций ДВМП это может означать кратный рост.</b><br><br><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F9189.png')\"><b>👉</b></i> <a href=\"https://putinomics.ru/dashboard/FESH/MOEX\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">Справедливая цена акций ДВМП (FESH) 97 рублей, потенциал роста +180%.</a><br><br><a href=\"?q=%23FESH\">#FESH</a><br><a href=\"https://t.me/AK47pfl\" target=\"_blank\">@AK47pfl</a></div>",
+     "publishedAt": "2022-04-14 11:43:23",
+     "index": 3,
+     "md5": "b2e975d85ab64e16039c16506dfda01a"
+    },
+    "page": {
+     "title": "РынкиДеньгиВласть | РДВ",
+     "description": "<div class=\"tgme_channel_info_description\"><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F949D.png')\"><b>🔝</b></i> аналитика по российскому рынку ценных бумаг, которая ранее была доступна лишь финансовым элитам. Впереди брокеров и банков.<br><br>Стратегические вопросы: <a href=\"https://t.me/dragonwoo\" target=\"_blank\">@dragonwoo</a><br><br>Реклама - агент PR Fintech: <a href=\"https://t.me/arina_promo\" target=\"_blank\">@arina_promo</a><br><br>Сервис для инвесторов и трейдеров <a href=\"https://t.me/RDVPREMIUMbot\" target=\"_blank\">@RDVPREMIUMbot</a></div>",
+     "image": "https://cdn4.telegram-cdn.org/file/X3RZTkJ6BTu6VcpAiW3OCGxjezSTNGTyuW6BsBFNFsakzKUZyPc1c-RWWWdUic7HIDYiT5ygx44S6tAjy7L2GeNw3egyZtvz0FKkCagmo2mf3B4VZKvJ1mUVaKDiiaPwcA1xTKbxCeRfRGjmzLSesiRxu-gVrLnzD7oZ62tXaKDqaqLcw_dazSi_6rFjUnQRKoIJ2LPdPwjlHiR8cqN7VnD4RbGlNEf6h39my38JIFcdO_F28pO4_c3uds5eJVfqv3fM6WaOFonRaR3QnopWKTnU8jJTa6Vc9NfGxp9-F9MnqXYhwES98VpwgFudCUS60MrcMQSXBxS_IQOfQh_eAg.jpg"
+    }
+   },
+   "scheduler": {
+    "task": {
+     "params": {
+      "type": "telegram",
+      "channel": "AK47pfl"
+     },
+     "state": "processed",
+     "processedAt": "2022-04-15 17:38:29"
+    }
+   }
+  }
+ },
+ {
+  "service": {
+   "scraper": {
+    "message": {
+     "text": "  ДВМП (FESH): справедливая стоимость 97 руб., апсайд +175%.Рыночная цена акций стремится к их справедливой цене:  https://t.me/AK47pfl/9595#оценка #FESH @AK47pfl",
+     "html": "<div class=\"tgme_widget_message_text js-message_text\" dir=\"auto\"><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F94A6.png')\"><b>🔦</b></i><b> ДВМП (<a href=\"http://putinomics.ru/dashboard/FESH/MOEX?utm_source=tg&amp;utm_medium=social&amp;utm_campaign=rdv\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">FESH</a>): справедливая стоимость 97 руб., апсайд +175%.<br><br>Рыночная цена акций стремится к их справедливой цене:<br></b><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F9189.png')\"><b>👉</b></i><b> </b><a href=\"https://t.me/AK47pfl/9595\" target=\"_blank\" rel=\"noopener\">https://t.me/AK47pfl/9595</a><br><br><a href=\"?q=%23%D0%BE%D1%86%D0%B5%D0%BD%D0%BA%D0%B0\">#оценка</a> <a href=\"?q=%23FESH\">#FESH</a> <br><a href=\"https://t.me/AK47pfl\" target=\"_blank\">@AK47pfl</a></div>",
+     "publishedAt": "2022-04-14 11:49:05",
+     "index": 4,
+     "md5": "f61f1cfac11a21eb8d95a44e8b8306b5"
+    },
+    "page": {
+     "title": "РынкиДеньгиВласть | РДВ",
+     "description": "<div class=\"tgme_channel_info_description\"><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F949D.png')\"><b>🔝</b></i> аналитика по российскому рынку ценных бумаг, которая ранее была доступна лишь финансовым элитам. Впереди брокеров и банков.<br><br>Стратегические вопросы: <a href=\"https://t.me/dragonwoo\" target=\"_blank\">@dragonwoo</a><br><br>Реклама - агент PR Fintech: <a href=\"https://t.me/arina_promo\" target=\"_blank\">@arina_promo</a><br><br>Сервис для инвесторов и трейдеров <a href=\"https://t.me/RDVPREMIUMbot\" target=\"_blank\">@RDVPREMIUMbot</a></div>",
+     "image": "https://cdn4.telegram-cdn.org/file/X3RZTkJ6BTu6VcpAiW3OCGxjezSTNGTyuW6BsBFNFsakzKUZyPc1c-RWWWdUic7HIDYiT5ygx44S6tAjy7L2GeNw3egyZtvz0FKkCagmo2mf3B4VZKvJ1mUVaKDiiaPwcA1xTKbxCeRfRGjmzLSesiRxu-gVrLnzD7oZ62tXaKDqaqLcw_dazSi_6rFjUnQRKoIJ2LPdPwjlHiR8cqN7VnD4RbGlNEf6h39my38JIFcdO_F28pO4_c3uds5eJVfqv3fM6WaOFonRaR3QnopWKTnU8jJTa6Vc9NfGxp9-F9MnqXYhwES98VpwgFudCUS60MrcMQSXBxS_IQOfQh_eAg.jpg"
+    }
+   },
+   "scheduler": {
+    "task": {
+     "params": {
+      "type": "telegram",
+      "channel": "AK47pfl"
+     },
+     "state": "processed",
+     "processedAt": "2022-04-15 17:38:29"
+    }
+   }
+  }
+ },
+ {
+  "service": {
+   "scraper": {
+    "message": {
+     "text": "Тем временем порты Дальнего Востока не справляются с большой нагрузкой. Цены на услуги компаний, входящих в группу ДВМП, выросли в 2-3 раза.",
+     "html": "<div class=\"tgme_widget_message_text js-message_text\" dir=\"auto\">Тем временем порты Дальнего Востока не справляются с большой нагрузкой. Цены на услуги компаний, входящих в группу ДВМП, выросли в 2-3 раза.</div>",
+     "publishedAt": "2022-04-14 11:58:36",
+     "index": 5,
+     "md5": "9a1349c4e778685f604ee43206bfb06e"
+    },
+    "page": {
+     "title": "РынкиДеньгиВласть | РДВ",
+     "description": "<div class=\"tgme_channel_info_description\"><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F949D.png')\"><b>🔝</b></i> аналитика по российскому рынку ценных бумаг, которая ранее была доступна лишь финансовым элитам. Впереди брокеров и банков.<br><br>Стратегические вопросы: <a href=\"https://t.me/dragonwoo\" target=\"_blank\">@dragonwoo</a><br><br>Реклама - агент PR Fintech: <a href=\"https://t.me/arina_promo\" target=\"_blank\">@arina_promo</a><br><br>Сервис для инвесторов и трейдеров <a href=\"https://t.me/RDVPREMIUMbot\" target=\"_blank\">@RDVPREMIUMbot</a></div>",
+     "image": "https://cdn4.telegram-cdn.org/file/X3RZTkJ6BTu6VcpAiW3OCGxjezSTNGTyuW6BsBFNFsakzKUZyPc1c-RWWWdUic7HIDYiT5ygx44S6tAjy7L2GeNw3egyZtvz0FKkCagmo2mf3B4VZKvJ1mUVaKDiiaPwcA1xTKbxCeRfRGjmzLSesiRxu-gVrLnzD7oZ62tXaKDqaqLcw_dazSi_6rFjUnQRKoIJ2LPdPwjlHiR8cqN7VnD4RbGlNEf6h39my38JIFcdO_F28pO4_c3uds5eJVfqv3fM6WaOFonRaR3QnopWKTnU8jJTa6Vc9NfGxp9-F9MnqXYhwES98VpwgFudCUS60MrcMQSXBxS_IQOfQh_eAg.jpg"
+    }
+   },
+   "scheduler": {
+    "task": {
+     "params": {
+      "type": "telegram",
+      "channel": "AK47pfl"
+     },
+     "state": "processed",
+     "processedAt": "2022-04-15 17:38:29"
+    }
+   }
+  }
+ },
+ {
+  "service": {
+   "scraper": {
+    "message": {
+     "text": "  О потенциале роста ДВМП (FESH) пишут в Известиях. Биржевые аналитики оценили перспективы роста ценных бумаг российских грузоперевозчиков:  https://iz.ru/1317470/aleksandr-lesnykh/karavanami-parokhodami-mozhno-li-zarabotat-na-aktciiakh-logisticheskikh-kompaniiВот некоторые цитаты:  ДВМП   один из главных бенефициаров антироссийских санкций.  Для понимания того, как может вырасти грузопоток на Востоке, на примере контейнеров: грузооборот из портов на Балтике, завязанных на торговле с Европой, в прошлом году составил 2.5 млн контейнеров, на Востоке   только 1.9 млн.  Российская торговля переориентируется на Восток. Это перетянет значительный объем товарных перевозок из портов на Балтике, обслуживающих европейские маршруты, в крупнейший торговый порт Дальнего Востока.  Если европейские объемы уйдут в Азию, то грузопоток через восточные порты вырастет примерно в два раза.  В условиях ухудшения отношений со странами Запада Россия активнее начнет развивать торговлю в азиатском направлении.  ДВМП является лидером контейнерных перевозок через Дальний Восток, владеет Владивостокским морским торговым портом (ВМТП)   по сути, ключевыми воротами РФ при торговле с Азией.  Акции ДВМП могут быть интересны на долгосрочном горизонте в виде ставки на расширение торгового сотрудничества с Азией.  Справедливая цена акций ДВМП (FESH) 97 рублей, потенциал роста +175%.@AK47pfl",
+     "html": "<div class=\"tgme_widget_message_text js-message_text\" dir=\"auto\"><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F979E.png')\"><b>🗞</b></i> <b>О потенциале роста ДВМП</b> <b>(<a href=\"http://putinomics.ru/dashboard/FESH/MOEX?utm_source=tg&amp;utm_medium=social&amp;utm_campaign=rdv\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">FESH</a>) пишут</b> <b>в Известиях</b>. Биржевые аналитики оценили перспективы роста ценных бумаг российских грузоперевозчиков:<br><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F9189.png')\"><b>👉</b></i> <a href=\"https://iz.ru/1317470/aleksandr-lesnykh/karavanami-parokhodami-mozhno-li-zarabotat-na-aktciiakh-logisticheskikh-kompanii\" target=\"_blank\" rel=\"noopener\">https://iz.ru/1317470/aleksandr-lesnykh/karavanami-parokhodami-mozhno-li-zarabotat-na-aktciiakh-logisticheskikh-kompanii</a><br><br>Вот некоторые цитаты:<br><br><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F94A5.png')\"><b>🔥</b></i> <u><b>ДВМП — один из главных бенефициаров антироссийских санкций.</b></u><br>• Для понимания того, как может вырасти грузопоток на Востоке, на примере контейнеров: грузооборот из портов на Балтике, завязанных на торговле с Европой, в прошлом году составил 2.5 млн контейнеров, на Востоке — только 1.9 млн.<br>• Российская торговля переориентируется на Восток. Это перетянет значительный объем товарных перевозок из портов на Балтике, обслуживающих европейские маршруты, в крупнейший торговый порт Дальнего Востока.<br>• Если европейские объемы уйдут в Азию, то грузопоток через восточные порты вырастет примерно в два раза.<br>• В условиях ухудшения отношений со странами Запада Россия активнее начнет развивать торговлю в азиатском направлении.<br>• ДВМП является лидером контейнерных перевозок через Дальний Восток, владеет Владивостокским морским торговым портом (ВМТП) — по сути, ключевыми воротами РФ при торговле с Азией.<br>• Акции ДВМП могут быть интересны на долгосрочном горизонте в виде ставки на расширение торгового сотрудничества с Азией.<br><br><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F9189.png')\"><b>👉</b></i> <a href=\"https://putinomics.ru/dashboard/FESH/MOEX\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">Справедливая цена акций ДВМП (FESH) 97 рублей, потенциал роста +175%.</a><br><br><a href=\"https://t.me/AK47pfl\" target=\"_blank\">@AK47pfl</a></div>",
+     "publishedAt": "2022-04-14 12:12:10",
+     "index": 6,
+     "md5": "78e6a9a52facd83097de40534d9bb9ab"
+    },
+    "page": {
+     "title": "РынкиДеньгиВласть | РДВ",
+     "description": "<div class=\"tgme_channel_info_description\"><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F949D.png')\"><b>🔝</b></i> аналитика по российскому рынку ценных бумаг, которая ранее была доступна лишь финансовым элитам. Впереди брокеров и банков.<br><br>Стратегические вопросы: <a href=\"https://t.me/dragonwoo\" target=\"_blank\">@dragonwoo</a><br><br>Реклама - агент PR Fintech: <a href=\"https://t.me/arina_promo\" target=\"_blank\">@arina_promo</a><br><br>Сервис для инвесторов и трейдеров <a href=\"https://t.me/RDVPREMIUMbot\" target=\"_blank\">@RDVPREMIUMbot</a></div>",
+     "image": "https://cdn4.telegram-cdn.org/file/X3RZTkJ6BTu6VcpAiW3OCGxjezSTNGTyuW6BsBFNFsakzKUZyPc1c-RWWWdUic7HIDYiT5ygx44S6tAjy7L2GeNw3egyZtvz0FKkCagmo2mf3B4VZKvJ1mUVaKDiiaPwcA1xTKbxCeRfRGjmzLSesiRxu-gVrLnzD7oZ62tXaKDqaqLcw_dazSi_6rFjUnQRKoIJ2LPdPwjlHiR8cqN7VnD4RbGlNEf6h39my38JIFcdO_F28pO4_c3uds5eJVfqv3fM6WaOFonRaR3QnopWKTnU8jJTa6Vc9NfGxp9-F9MnqXYhwES98VpwgFudCUS60MrcMQSXBxS_IQOfQh_eAg.jpg"
+    }
+   },
+   "scheduler": {
+    "task": {
+     "params": {
+      "type": "telegram",
+      "channel": "AK47pfl"
+     },
+     "state": "processed",
+     "processedAt": "2022-04-15 17:38:29"
+    }
+   }
+  }
+ },
+ {
+  "service": {
+   "scraper": {
+    "message": {
+     "text": "Гости казино скидывают в личку сравнение транспортных компаний по мультам:- простаивающий НМТП сейчас стоит 4 годовых прибыли- мутный Глобалтранс стоит 5.2 годовых прибылиСколько стоит ДВМП, который единственный выигрывает от переориентации на восток?Пока всего 2.8 годовых прибыли!!! Если это не буй, то вообще хз что такое буй.",
+     "html": "<div class=\"tgme_widget_message_text js-message_text\" dir=\"auto\">Гости казино скидывают в личку сравнение транспортных компаний по мультам:<br><br>- простаивающий НМТП сейчас стоит 4 годовых прибыли<br>- мутный Глобалтранс стоит 5.2 годовых прибыли<br><br>Сколько стоит ДВМП, который единственный <a href=\"https://t.me/finpizdec/9245\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">выигрывает</a> от переориентации на восток?<br><br>Пока всего 2.8 годовых прибыли!!! Если это не буй, то вообще хз что такое буй.</div>",
+     "publishedAt": "2022-04-14 12:24:32",
+     "index": 7,
+     "md5": "6957c4692cbad0aad0952d8d976116d0"
+    },
+    "page": {
+     "title": "РынкиДеньгиВласть | РДВ",
+     "description": "<div class=\"tgme_channel_info_description\"><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F949D.png')\"><b>🔝</b></i> аналитика по российскому рынку ценных бумаг, которая ранее была доступна лишь финансовым элитам. Впереди брокеров и банков.<br><br>Стратегические вопросы: <a href=\"https://t.me/dragonwoo\" target=\"_blank\">@dragonwoo</a><br><br>Реклама - агент PR Fintech: <a href=\"https://t.me/arina_promo\" target=\"_blank\">@arina_promo</a><br><br>Сервис для инвесторов и трейдеров <a href=\"https://t.me/RDVPREMIUMbot\" target=\"_blank\">@RDVPREMIUMbot</a></div>",
+     "image": "https://cdn4.telegram-cdn.org/file/X3RZTkJ6BTu6VcpAiW3OCGxjezSTNGTyuW6BsBFNFsakzKUZyPc1c-RWWWdUic7HIDYiT5ygx44S6tAjy7L2GeNw3egyZtvz0FKkCagmo2mf3B4VZKvJ1mUVaKDiiaPwcA1xTKbxCeRfRGjmzLSesiRxu-gVrLnzD7oZ62tXaKDqaqLcw_dazSi_6rFjUnQRKoIJ2LPdPwjlHiR8cqN7VnD4RbGlNEf6h39my38JIFcdO_F28pO4_c3uds5eJVfqv3fM6WaOFonRaR3QnopWKTnU8jJTa6Vc9NfGxp9-F9MnqXYhwES98VpwgFudCUS60MrcMQSXBxS_IQOfQh_eAg.jpg"
+    }
+   },
+   "scheduler": {
+    "task": {
+     "params": {
+      "type": "telegram",
+      "channel": "AK47pfl"
+     },
+     "state": "processed",
+     "processedAt": "2022-04-15 17:38:29"
+    }
+   }
+  }
+ },
+ {
+  "service": {
+   "scraper": {
+    "message": {
+     "text": "Скрин из отчётности ДВМП (пароходик)  - прибыль на акцию в 2021 году =12.64 руб.- акция ща стоит 35.6 руб.- P/E = 2.8xПочему-то кажется, что в этом году из-за всего происходящего прибыль у пароходика может быть и побольше  ",
+     "html": "<div class=\"tgme_widget_message_text js-message_text\" dir=\"auto\">Скрин из отчётности ДВМП (пароходик) <i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F9186.png')\"><b>👆</b></i><br><br>- прибыль на акцию в 2021 году =12.64 руб.<br>- акция ща стоит 35.6 руб.<br>- P/E = 2.8x<br><br>Почему-то кажется, что в этом году из-за всего происходящего прибыль у пароходика может быть и побольше <i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F9A80.png')\"><b>🚀</b></i></div>",
+     "publishedAt": "2022-04-14 12:29:25",
+     "index": 8,
+     "md5": "5badb884e25855a3b1c382c97ad5decb"
+    },
+    "page": {
+     "title": "РынкиДеньгиВласть | РДВ",
+     "description": "<div class=\"tgme_channel_info_description\"><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F949D.png')\"><b>🔝</b></i> аналитика по российскому рынку ценных бумаг, которая ранее была доступна лишь финансовым элитам. Впереди брокеров и банков.<br><br>Стратегические вопросы: <a href=\"https://t.me/dragonwoo\" target=\"_blank\">@dragonwoo</a><br><br>Реклама - агент PR Fintech: <a href=\"https://t.me/arina_promo\" target=\"_blank\">@arina_promo</a><br><br>Сервис для инвесторов и трейдеров <a href=\"https://t.me/RDVPREMIUMbot\" target=\"_blank\">@RDVPREMIUMbot</a></div>",
+     "image": "https://cdn4.telegram-cdn.org/file/X3RZTkJ6BTu6VcpAiW3OCGxjezSTNGTyuW6BsBFNFsakzKUZyPc1c-RWWWdUic7HIDYiT5ygx44S6tAjy7L2GeNw3egyZtvz0FKkCagmo2mf3B4VZKvJ1mUVaKDiiaPwcA1xTKbxCeRfRGjmzLSesiRxu-gVrLnzD7oZ62tXaKDqaqLcw_dazSi_6rFjUnQRKoIJ2LPdPwjlHiR8cqN7VnD4RbGlNEf6h39my38JIFcdO_F28pO4_c3uds5eJVfqv3fM6WaOFonRaR3QnopWKTnU8jJTa6Vc9NfGxp9-F9MnqXYhwES98VpwgFudCUS60MrcMQSXBxS_IQOfQh_eAg.jpg"
+    }
+   },
+   "scheduler": {
+    "task": {
+     "params": {
+      "type": "telegram",
+      "channel": "AK47pfl"
+     },
+     "state": "processed",
+     "processedAt": "2022-04-15 17:38:29"
+    }
+   }
+  }
+ },
+ {
+  "service": {
+   "scraper": {
+    "message": {
+     "text": "  Сборник. Акции ДВМП (FESH) могут вырасти в 3 раза.1. Бизнес компании вырастет на 100%, считают эксперты и источники, с которыми поговорили РДВ. В будущем для акций ДВМП это может означать кратный рост.2. Порты Дальнего Востока не справляются с большой нагрузкой. Цены на услуги компаний, входящих в группу ДВМП, выросли в 2-3 раза.3. О потенциале роста ДВМП пишут в Известиях: ДВМП   один из главных бенефициаров антироссийских санкций.4. ДВМП стоит 2.8 годовых прибылей 2021 года. Потенциал роста до аналогов более 70%.  Справедливая цена акций ДВМП (FESH) 97 рублей, потенциал роста +170%.@AK47pfl",
+     "html": "<div class=\"tgme_widget_message_text js-message_text\" dir=\"auto\"><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F939A.png')\"><b>📚</b></i><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/E29A93.png')\"><b>⚓️</b></i> <b>Сборник.</b> <b>Акции ДВМП (<a href=\"https://putinomics.ru/dashboard/FESH/MOEX\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">FESH</a>) могут вырасти в 3 раза.</b><br><br>1. <a href=\"https://t.me/AK47pfl/11876\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">Бизнес компании вырастет на 100%</a>, считают эксперты и источники, с которыми поговорили РДВ. В будущем для акций ДВМП это может означать кратный рост.<br>2. Порты Дальнего Востока не справляются с <a href=\"https://t.me/AK47pfl/11878\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">большой нагрузкой</a>. Цены на услуги компаний, входящих в группу ДВМП, выросли в 2-3 раза.<br>3. О потенциале роста ДВМП пишут в Известиях: ДВМП — один из главных <a href=\"https://t.me/AK47pfl/11879\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">бенефициаров антироссийских санкций</a>.<br>4. ДВМП стоит 2.8 годовых прибылей 2021 года. <a href=\"https://t.me/finpizdec/9410\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">Потенциал роста</a> до аналогов более 70%.<br><br><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F9189.png')\"><b>👉</b></i> <a href=\"https://t.me/AK47pfl/11877\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">Справедливая цена акций ДВМП (FESH) 97 рублей, потенциал роста +170%.</a><br><br><a href=\"https://t.me/AK47pfl\" target=\"_blank\">@AK47pfl</a></div>",
+     "publishedAt": "2022-04-14 12:47:24",
+     "index": 9,
+     "md5": "5d895df54775ce8fc0300267ede40063"
+    },
+    "page": {
+     "title": "РынкиДеньгиВласть | РДВ",
+     "description": "<div class=\"tgme_channel_info_description\"><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F949D.png')\"><b>🔝</b></i> аналитика по российскому рынку ценных бумаг, которая ранее была доступна лишь финансовым элитам. Впереди брокеров и банков.<br><br>Стратегические вопросы: <a href=\"https://t.me/dragonwoo\" target=\"_blank\">@dragonwoo</a><br><br>Реклама - агент PR Fintech: <a href=\"https://t.me/arina_promo\" target=\"_blank\">@arina_promo</a><br><br>Сервис для инвесторов и трейдеров <a href=\"https://t.me/RDVPREMIUMbot\" target=\"_blank\">@RDVPREMIUMbot</a></div>",
+     "image": "https://cdn4.telegram-cdn.org/file/X3RZTkJ6BTu6VcpAiW3OCGxjezSTNGTyuW6BsBFNFsakzKUZyPc1c-RWWWdUic7HIDYiT5ygx44S6tAjy7L2GeNw3egyZtvz0FKkCagmo2mf3B4VZKvJ1mUVaKDiiaPwcA1xTKbxCeRfRGjmzLSesiRxu-gVrLnzD7oZ62tXaKDqaqLcw_dazSi_6rFjUnQRKoIJ2LPdPwjlHiR8cqN7VnD4RbGlNEf6h39my38JIFcdO_F28pO4_c3uds5eJVfqv3fM6WaOFonRaR3QnopWKTnU8jJTa6Vc9NfGxp9-F9MnqXYhwES98VpwgFudCUS60MrcMQSXBxS_IQOfQh_eAg.jpg"
+    }
+   },
+   "scheduler": {
+    "task": {
+     "params": {
+      "type": "telegram",
+      "channel": "AK47pfl"
+     },
+     "state": "processed",
+     "processedAt": "2022-04-15 17:38:29"
+    }
+   }
+  }
+ },
+ {
+  "service": {
+   "scraper": {
+    "message": {
+     "text": "  ДВМП (FESH): справедливая стоимость 97 руб., апсайд +175%.Рыночная цена акций стремится к их справедливой цене:  https://t.me/AK47pfl/9595#оценка #FESH @AK47pfl",
+     "html": "<div class=\"tgme_widget_message_text js-message_text\" dir=\"auto\"><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F94A6.png')\"><b>🔦</b></i><b> ДВМП (<a href=\"http://putinomics.ru/dashboard/FESH/MOEX?utm_source=tg&amp;utm_medium=social&amp;utm_campaign=rdv\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">FESH</a>): справедливая стоимость 97 руб., апсайд +175%.<br><br>Рыночная цена акций стремится к их справедливой цене:<br></b><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F9189.png')\"><b>👉</b></i><b> </b><a href=\"https://t.me/AK47pfl/9595\" target=\"_blank\" rel=\"noopener\">https://t.me/AK47pfl/9595</a><br><br><a href=\"?q=%23%D0%BE%D1%86%D0%B5%D0%BD%D0%BA%D0%B0\">#оценка</a> <a href=\"?q=%23FESH\">#FESH</a> <br><a href=\"https://t.me/AK47pfl\" target=\"_blank\">@AK47pfl</a></div>",
+     "publishedAt": "2022-04-14 12:52:55",
+     "index": 10,
+     "md5": "f61f1cfac11a21eb8d95a44e8b8306b5"
+    },
+    "page": {
+     "title": "РынкиДеньгиВласть | РДВ",
+     "description": "<div class=\"tgme_channel_info_description\"><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F949D.png')\"><b>🔝</b></i> аналитика по российскому рынку ценных бумаг, которая ранее была доступна лишь финансовым элитам. Впереди брокеров и банков.<br><br>Стратегические вопросы: <a href=\"https://t.me/dragonwoo\" target=\"_blank\">@dragonwoo</a><br><br>Реклама - агент PR Fintech: <a href=\"https://t.me/arina_promo\" target=\"_blank\">@arina_promo</a><br><br>Сервис для инвесторов и трейдеров <a href=\"https://t.me/RDVPREMIUMbot\" target=\"_blank\">@RDVPREMIUMbot</a></div>",
+     "image": "https://cdn4.telegram-cdn.org/file/X3RZTkJ6BTu6VcpAiW3OCGxjezSTNGTyuW6BsBFNFsakzKUZyPc1c-RWWWdUic7HIDYiT5ygx44S6tAjy7L2GeNw3egyZtvz0FKkCagmo2mf3B4VZKvJ1mUVaKDiiaPwcA1xTKbxCeRfRGjmzLSesiRxu-gVrLnzD7oZ62tXaKDqaqLcw_dazSi_6rFjUnQRKoIJ2LPdPwjlHiR8cqN7VnD4RbGlNEf6h39my38JIFcdO_F28pO4_c3uds5eJVfqv3fM6WaOFonRaR3QnopWKTnU8jJTa6Vc9NfGxp9-F9MnqXYhwES98VpwgFudCUS60MrcMQSXBxS_IQOfQh_eAg.jpg"
+    }
+   },
+   "scheduler": {
+    "task": {
+     "params": {
+      "type": "telegram",
+      "channel": "AK47pfl"
+     },
+     "state": "processed",
+     "processedAt": "2022-04-15 17:38:29"
+    }
+   }
+  }
+ },
+ {
+  "service": {
+   "scraper": {
+    "message": {
+     "text": "  Второй фронт для США: Китай собирается атаковать Тайвань? В случае военных действий на Тайване тема Украины уйдёт на второй план, а блок дружественных Китаю стран сплотится ещё сильнее.История Тайваня:В 1949 году после поражения в гражданской войне с материкового Китая на остров Тэйбэй сбежали остатки правительства. С тех пор на Тэйбэе развевается флаг прежней Китайской Республики, а ныне Тайваня. КНР считает остров мятежной провинцией и добивается воссоединения, не исключая для этого применения военной силы. США в этом конфликте выступают на стороне Тайваня, поставляя оружие и обещая защитить Тайвань в случае вторжения.Угроза китайской оккупации Тайваня встала особо остро после событий на Украине. Пекин может воспользоваться мировой нестабильностью и отвлечённым на это Западом. Народно-освободительная армия Китая (НОАК)   армия  1 в мире по численности военнослужащих: более 3.5 млн человек (в 10 раз больше, чем у Тайваня).Китай готовит почву к вторжению в Тайвань:  НОАК регулярно проводит учения по высадке на побережье (пока правда на своё, но прямо напротив Тэйбэя).  Китайские компании сокращают операции с Западом, чтобы не попасть под санкции в случае эскалации. Так, топ-3 китайский нефтяник рассматривает продажу активов в США, Британии и Канаде.  Власти Пекина постоянно предупреждают Запад, что Тайвань   это внутреннее дело Китая и вмешательство извне недопустимо.Тайвань уже начал готовиться к вторжению Китая:  Тайваньские военные выпустили руководство по ЧС. Оно предназначено для подготовки всех граждан на случай китайского вторжения на остров. 28-страничный буклет включает инструкции как найти бомбоубежища, накапливать запасы и оказывать первую помощь.   До этого военные Тайваня провели учения противовоздушной обороны для проверки готовности к отражению атаки с воздуха со стороны материкового Китая.США предупреждает вторжение Китая в Тайвань:  Сегодня конгрессмены США прибыли на Тайвань с необъявленным визитом.  Белый дом: США сделают всё возможное, чтобы не допустить воссоединения Тайваня с материковым Китаем силой.  Неделей ранее Нэнси Пелоси планировала визит в Тайвань. Но в последний момент поездка сорвалась «из-за положительного теста на Covid-19». Это произошло после угроз Пекина дать «военный ответ» США, расценив этот визит как покушение на территориальную целостность Китая.Если будет второй фронт для США, то дружественные Китаю страны сплотятся вокруг него ещё сильнее. Военный Китай может угрожать безопасности США не меньше, чем Россия, поэтому тема Украины отойдёт на второй план.@AK47pfl",
+     "html": "<div class=\"tgme_widget_message_text js-message_text\" dir=\"auto\"><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F87A8F09F87B3.png')\"><b>🇨🇳</b></i><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F87B9F09F87BC.png')\"><b>🇹🇼</b></i> <b>Второй фронт для США: Китай собирается атаковать Тайвань?</b> В случае военных действий на Тайване тема Украины уйдёт на второй план, а блок дружественных Китаю стран сплотится ещё сильнее.<br><br><u>История Тайваня:<br></u>В 1949 году после поражения в гражданской войне с материкового Китая на остров Тэйбэй сбежали остатки правительства. С тех пор на Тэйбэе развевается флаг прежней Китайской Республики, а ныне Тайваня. КНР считает остров мятежной провинцией и добивается воссоединения, не исключая для этого применения военной силы. США в этом конфликте выступают на стороне Тайваня, поставляя оружие и обещая защитить Тайвань в случае вторжения.<br><br>Угроза китайской оккупации Тайваня встала особо остро после событий на Украине. Пекин может воспользоваться мировой нестабильностью и отвлечённым на это Западом. Народно-освободительная армия Китая (НОАК) — армия №1 в мире по численности военнослужащих: более 3.5 млн человек (<a href=\"https://ru.wikipedia.org/wiki/%D0%A1%D0%BF%D0%B8%D1%81%D0%BE%D0%BA_%D1%81%D1%82%D1%80%D0%B0%D0%BD_%D0%BF%D0%BE_%D1%87%D0%B8%D1%81%D0%BB%D0%B5%D0%BD%D0%BD%D0%BE%D1%81%D1%82%D0%B8_%D0%B2%D0%BE%D0%BE%D1%80%D1%83%D0%B6%D1%91%D0%BD%D0%BD%D1%8B%D1%85_%D1%81%D0%B8%D0%BB_%D0%B8_%D0%B2%D0%BE%D0%B5%D0%BD%D0%B8%D0%B7%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%BD%D1%8B%D1%85_%D1%84%D0%BE%D1%80%D0%BC%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B9\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">в 10 раз больше</a>, чем у Тайваня).<br><br><u>Китай готовит почву к вторжению в Тайвань:<br></u>• НОАК регулярно проводит учения по высадке на побережье (пока правда на своё, но прямо напротив Тэйбэя).<br>• Китайские компании сокращают операции с Западом, чтобы не попасть под санкции в случае эскалации. Так, топ-3 китайский нефтяник рассматривает <a href=\"https://tass.ru/ekonomika/14372537?utm_source=yxnews&amp;utm_medium=desktop\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">продажу активов в США</a>, Британии и Канаде.<br>• Власти Пекина постоянно предупреждают Запад, что Тайвань — это внутреннее дело Китая и вмешательство извне недопустимо.<br><br><u>Тайвань уже начал готовиться к вторжению Китая:<br></u>• Тайваньские военные <a href=\"https://www.reuters.com/world/asia-pacific/taiwan-issues-first-war-survival-handbook-amid-china-threat-2022-04-12/\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">выпустили руководство</a> по ЧС. Оно предназначено для подготовки всех граждан на случай китайского вторжения на остров. 28-страничный буклет включает инструкции как найти бомбоубежища, накапливать запасы и оказывать первую помощь. <br>• До этого военные Тайваня провели <a href=\"https://www.scmp.com/news/china/military/article/3173983/taipei-wakes-warplanes-overhead-military-drill-simulates-pla?module=lead_hero_story&amp;pgtype=homepage\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">учения противовоздушной обороны</a> для проверки готовности к отражению атаки с воздуха со стороны материкового Китая.<br><br><u>США предупреждает вторжение Китая в Тайвань:<br></u>• Сегодня конгрессмены США прибыли на Тайвань с необъявленным визитом.<br>• Белый дом: США сделают всё возможное, чтобы не допустить воссоединения Тайваня с материковым Китаем силой.<br>• Неделей ранее Нэнси Пелоси планировала визит в Тайвань. Но в последний момент поездка сорвалась «из-за положительного теста на Covid-19». Это произошло после угроз Пекина дать «военный ответ» США, расценив этот визит как покушение на территориальную целостность Китая.<br><br>Если будет второй фронт для США, то дружественные Китаю страны сплотятся вокруг него ещё сильнее. Военный Китай может угрожать безопасности США не меньше, чем Россия, поэтому тема Украины отойдёт на второй план.<br><br><a href=\"https://t.me/AK47pfl\" target=\"_blank\">@AK47pfl</a></div>",
+     "publishedAt": "2022-04-14 17:01:52",
+     "index": 11,
+     "md5": "5bf35566329a412cf132a619ca49f34e"
+    },
+    "page": {
+     "title": "РынкиДеньгиВласть | РДВ",
+     "description": "<div class=\"tgme_channel_info_description\"><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F949D.png')\"><b>🔝</b></i> аналитика по российскому рынку ценных бумаг, которая ранее была доступна лишь финансовым элитам. Впереди брокеров и банков.<br><br>Стратегические вопросы: <a href=\"https://t.me/dragonwoo\" target=\"_blank\">@dragonwoo</a><br><br>Реклама - агент PR Fintech: <a href=\"https://t.me/arina_promo\" target=\"_blank\">@arina_promo</a><br><br>Сервис для инвесторов и трейдеров <a href=\"https://t.me/RDVPREMIUMbot\" target=\"_blank\">@RDVPREMIUMbot</a></div>",
+     "image": "https://cdn4.telegram-cdn.org/file/X3RZTkJ6BTu6VcpAiW3OCGxjezSTNGTyuW6BsBFNFsakzKUZyPc1c-RWWWdUic7HIDYiT5ygx44S6tAjy7L2GeNw3egyZtvz0FKkCagmo2mf3B4VZKvJ1mUVaKDiiaPwcA1xTKbxCeRfRGjmzLSesiRxu-gVrLnzD7oZ62tXaKDqaqLcw_dazSi_6rFjUnQRKoIJ2LPdPwjlHiR8cqN7VnD4RbGlNEf6h39my38JIFcdO_F28pO4_c3uds5eJVfqv3fM6WaOFonRaR3QnopWKTnU8jJTa6Vc9NfGxp9-F9MnqXYhwES98VpwgFudCUS60MrcMQSXBxS_IQOfQh_eAg.jpg"
+    }
+   },
+   "scheduler": {
+    "task": {
+     "params": {
+      "type": "telegram",
+      "channel": "AK47pfl"
+     },
+     "state": "processed",
+     "processedAt": "2022-04-15 17:38:29"
+    }
+   }
+  }
+ },
+ {
+  "service": {
+   "scraper": {
+    "message": {
+     "text": "  15.04.2022  Крейсер Москва затонул, о корабле.  Законопроект о внешнем управлении рассмотрят не раньше мая.  На совещании по ситуации в нефтегазовом секторе Владимир Путин объявил о планах увеличить долю расчетов в рублях.  Армения начала платить за российский газ в рублях.  Два конгрессмена США посетили Киев   первый визит официальных лиц с начала событий на Украине.  Китай проведет военные учения в районе Тайваня в ответ на действия США.  ВС Китая примут решительные меры против внешнего вмешательства и попыток отделить Тайвань. Ожидается:  Возможные операционные результаты за 1кв2022: Алроса (ALRS), Global Ports (GLPR), Северсталь (CHMF). Ранее ММК и НЛМК скрыли свои отчётности.#morning@AK47pfl",
+     "html": "<div class=\"tgme_widget_message_text js-message_text\" dir=\"auto\"><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/E29880.png')\"><b>☀️</b></i> <b>15.04.2022</b><br><br><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F87B7F09F87BA.png')\"><b>🇷🇺</b></i><br>• Крейсер Москва затонул, <a href=\"https://www.vedomosti.ru/politics/news/2022/04/15/918213-kreiser-moskva-zatonul\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">о корабле</a>.<br>• Законопроект <a href=\"https://www.vedomosti.ru/politics/articles/2022/04/14/918204-zakonoproekt-vneshnem-upravlenii\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">о внешнем управлении</a> рассмотрят не раньше мая.<br>• На совещании по ситуации в нефтегазовом секторе Владимир Путин объявил о планах увеличить <a href=\"https://www.vedomosti.ru/economics/articles/2022/04/14/918210-putin-uvelichit-raschetov\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">долю расчетов в рублях</a>.<br>• Армения начала платить за российский <a href=\"https://www.rbc.ru/business/15/04/2022/625865449a7947d679afc820\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">газ в рублях</a>.<br><br><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F8C8E.png')\"><b>🌎</b></i><br>• Два конгрессмена <a href=\"https://www.nytimes.com/2022/04/14/world/europe/steve-daines-victoria-spartz-ukraine-kyiv.html\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">США посетили Киев</a> — первый визит официальных лиц с начала событий на Украине.<br><br><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F87A8F09F87B3.png')\"><b>🇨🇳</b></i><br>• Китай проведет <a href=\"https://t.me/cbrstocks/35391\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">военные учения</a> в районе Тайваня в ответ на действия США.<br>• ВС Китая примут решительные меры <a href=\"https://t.me/cbrstocks/35392\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">против внешнего вмешательства</a> и попыток отделить Тайвань.<br><br><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/E29D97.png')\"><b>❗️</b></i><b>Ожидается:</b><br>• Возможные операционные результаты за 1кв2022: Алроса (ALRS), Global Ports (GLPR), Северсталь (CHMF). Ранее ММК и НЛМК скрыли свои отчётности.<br><br><a href=\"?q=%23morning\">#morning</a><br><a href=\"https://t.me/AK47pfl\" target=\"_blank\">@AK47pfl</a></div>",
+     "publishedAt": "2022-04-15 09:30:27",
+     "index": 12,
+     "md5": "be1a4d8c48e8ce5a3abedfc10da66c49"
+    },
+    "page": {
+     "title": "РынкиДеньгиВласть | РДВ",
+     "description": "<div class=\"tgme_channel_info_description\"><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F949D.png')\"><b>🔝</b></i> аналитика по российскому рынку ценных бумаг, которая ранее была доступна лишь финансовым элитам. Впереди брокеров и банков.<br><br>Стратегические вопросы: <a href=\"https://t.me/dragonwoo\" target=\"_blank\">@dragonwoo</a><br><br>Реклама - агент PR Fintech: <a href=\"https://t.me/arina_promo\" target=\"_blank\">@arina_promo</a><br><br>Сервис для инвесторов и трейдеров <a href=\"https://t.me/RDVPREMIUMbot\" target=\"_blank\">@RDVPREMIUMbot</a></div>",
+     "image": "https://cdn4.telegram-cdn.org/file/X3RZTkJ6BTu6VcpAiW3OCGxjezSTNGTyuW6BsBFNFsakzKUZyPc1c-RWWWdUic7HIDYiT5ygx44S6tAjy7L2GeNw3egyZtvz0FKkCagmo2mf3B4VZKvJ1mUVaKDiiaPwcA1xTKbxCeRfRGjmzLSesiRxu-gVrLnzD7oZ62tXaKDqaqLcw_dazSi_6rFjUnQRKoIJ2LPdPwjlHiR8cqN7VnD4RbGlNEf6h39my38JIFcdO_F28pO4_c3uds5eJVfqv3fM6WaOFonRaR3QnopWKTnU8jJTa6Vc9NfGxp9-F9MnqXYhwES98VpwgFudCUS60MrcMQSXBxS_IQOfQh_eAg.jpg"
+    }
+   },
+   "scheduler": {
+    "task": {
+     "params": {
+      "type": "telegram",
+      "channel": "AK47pfl"
+     },
+     "state": "processed",
+     "processedAt": "2022-04-15 17:38:29"
+    }
+   }
+  }
+ },
+ {
+  "service": {
+   "scraper": {
+    "message": {
+     "text": "  Китай и Тайвань: военные учения в ответ на визит делегации США. Китайские военные направили фрегаты, бомбардировщики и истребители в Восточно-Китайское море и район вокруг Тайваня из-за «ошибочных сигналов» США по острову.МИД КНР требует от США прекратить все официальные контакты с Тайванем. «Уловки США совершенно бесполезны и очень опасны. Те, кто играет с огнем, сожгут себя»,   говорится в сообщении.Минобороны КНР сообщает, что визит США был «намеренно провокационным» и «привел к дальнейшей эскалации напряженности в Тайваньском проливе». Армия Китая обещает принять все меры, чтобы не допустить попыток организовать независимость Тайваня.Ранее РДВ: Второй фронт для США: Китай собирается атаковать Тайвань?@AK47pfl",
+     "html": "<div class=\"tgme_widget_message_text js-message_text\" dir=\"auto\"><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/E29AA1.png')\"><b>⚡️</b></i><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F87A8F09F87B3.png')\"><b>🇨🇳</b></i> <b>Китай и Тайвань:</b> <b>военные учения в ответ на визит делегации США.</b> Китайские военные направили фрегаты, бомбардировщики и истребители в Восточно-Китайское море и район вокруг Тайваня из-за «ошибочных сигналов» США по острову.<br><br>МИД КНР требует от США прекратить все официальные контакты с Тайванем. <i>«Уловки США совершенно бесполезны и очень опасны. <u>Те, кто играет с огнем, сожгут себя</u>»,</i> — говорится в сообщении.<br><br>Минобороны КНР сообщает, что визит США был «намеренно провокационным» и «привел к дальнейшей эскалации напряженности в Тайваньском проливе». Армия Китая обещает принять все меры, чтобы не допустить попыток организовать независимость Тайваня.<br><br><a href=\"https://t.me/AK47pfl/11884\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">Ранее РДВ:</a> Второй фронт для США: Китай собирается атаковать Тайвань?<br><br><a href=\"https://t.me/AK47pfl\" target=\"_blank\">@AK47pfl</a></div>",
+     "publishedAt": "2022-04-15 11:04:03",
+     "index": 13,
+     "md5": "d349f973e36803935c3c6513fad687b7"
+    },
+    "page": {
+     "title": "РынкиДеньгиВласть | РДВ",
+     "description": "<div class=\"tgme_channel_info_description\"><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F949D.png')\"><b>🔝</b></i> аналитика по российскому рынку ценных бумаг, которая ранее была доступна лишь финансовым элитам. Впереди брокеров и банков.<br><br>Стратегические вопросы: <a href=\"https://t.me/dragonwoo\" target=\"_blank\">@dragonwoo</a><br><br>Реклама - агент PR Fintech: <a href=\"https://t.me/arina_promo\" target=\"_blank\">@arina_promo</a><br><br>Сервис для инвесторов и трейдеров <a href=\"https://t.me/RDVPREMIUMbot\" target=\"_blank\">@RDVPREMIUMbot</a></div>",
+     "image": "https://cdn4.telegram-cdn.org/file/X3RZTkJ6BTu6VcpAiW3OCGxjezSTNGTyuW6BsBFNFsakzKUZyPc1c-RWWWdUic7HIDYiT5ygx44S6tAjy7L2GeNw3egyZtvz0FKkCagmo2mf3B4VZKvJ1mUVaKDiiaPwcA1xTKbxCeRfRGjmzLSesiRxu-gVrLnzD7oZ62tXaKDqaqLcw_dazSi_6rFjUnQRKoIJ2LPdPwjlHiR8cqN7VnD4RbGlNEf6h39my38JIFcdO_F28pO4_c3uds5eJVfqv3fM6WaOFonRaR3QnopWKTnU8jJTa6Vc9NfGxp9-F9MnqXYhwES98VpwgFudCUS60MrcMQSXBxS_IQOfQh_eAg.jpg"
+    }
+   },
+   "scheduler": {
+    "task": {
+     "params": {
+      "type": "telegram",
+      "channel": "AK47pfl"
+     },
+     "state": "processed",
+     "processedAt": "2022-04-15 17:38:29"
+    }
+   }
+  }
+ },
+ {
+  "service": {
+   "scraper": {
+    "message": {
+     "text": "РынкиДеньгиВласть | РДВ pinned «  Второй фронт для США: Китай собирается атаковать Тайвань? В случае военных действий на Тайване тема Украины уйдёт на второй план, а блок дружественных Китаю стран сплотится ещё сильнее.  История Тайваня: В 1949 году после поражения в гражданской войне »",
+     "html": "<div class=\"tgme_widget_message_text js-message_text\" dir=\"auto\"><a class=\"tgme_widget_message_author_name\" href=\"https://t.me/AK47pfl\"><span dir=\"auto\">РынкиДеньгиВласть | РДВ</span></a> pinned «<span class=\"tgme_widget_service_strong_text\" dir=\"auto\"><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F87A8F09F87B3.png')\"><b>🇨🇳</b></i><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F87B9F09F87BC.png')\"><b>🇹🇼</b></i> Второй фронт для США: Китай собирается атаковать Тайвань? В случае военных действий на Тайване тема Украины уйдёт на второй план, а блок дружественных Китаю стран сплотится ещё сильнее.  История Тайваня: В 1949 году после поражения в гражданской войне…</span>»</div>",
+     "publishedAt": "2022-04-15 11:04:14",
+     "index": 14,
+     "md5": "230358fc95632b03addd87e518921c45"
+    },
+    "page": {
+     "title": "РынкиДеньгиВласть | РДВ",
+     "description": "<div class=\"tgme_channel_info_description\"><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F949D.png')\"><b>🔝</b></i> аналитика по российскому рынку ценных бумаг, которая ранее была доступна лишь финансовым элитам. Впереди брокеров и банков.<br><br>Стратегические вопросы: <a href=\"https://t.me/dragonwoo\" target=\"_blank\">@dragonwoo</a><br><br>Реклама - агент PR Fintech: <a href=\"https://t.me/arina_promo\" target=\"_blank\">@arina_promo</a><br><br>Сервис для инвесторов и трейдеров <a href=\"https://t.me/RDVPREMIUMbot\" target=\"_blank\">@RDVPREMIUMbot</a></div>",
+     "image": "https://cdn4.telegram-cdn.org/file/X3RZTkJ6BTu6VcpAiW3OCGxjezSTNGTyuW6BsBFNFsakzKUZyPc1c-RWWWdUic7HIDYiT5ygx44S6tAjy7L2GeNw3egyZtvz0FKkCagmo2mf3B4VZKvJ1mUVaKDiiaPwcA1xTKbxCeRfRGjmzLSesiRxu-gVrLnzD7oZ62tXaKDqaqLcw_dazSi_6rFjUnQRKoIJ2LPdPwjlHiR8cqN7VnD4RbGlNEf6h39my38JIFcdO_F28pO4_c3uds5eJVfqv3fM6WaOFonRaR3QnopWKTnU8jJTa6Vc9NfGxp9-F9MnqXYhwES98VpwgFudCUS60MrcMQSXBxS_IQOfQh_eAg.jpg"
+    }
+   },
+   "scheduler": {
+    "task": {
+     "params": {
+      "type": "telegram",
+      "channel": "AK47pfl"
+     },
+     "state": "processed",
+     "processedAt": "2022-04-15 17:38:29"
+    }
+   }
+  }
+ },
+ {
+  "service": {
+   "scraper": {
+    "message": {
+     "text": "  Ключевые цифры Тайваня: за чем гонится Китай. История Тайваня.Население   Всего 23.3 млн чел    56 в мире, и больше не растёт  Доля городского населения 83% (в Китае 64%, в России 75%)  Медианный возраст 42 года (в Китае 38 лет, в России 40 лет)Экономика  ВВП $785 млрд    23  ВВП на душу населения $33.4 тыс.    40  Уровень безработицы ~3.7%  Государственный долг 28% ВВП  Валютные резервы $549 млрд (70% ВВП)Экспорт товаров $446 млрд    15 в мире.  38.5% экспорта   электронные компоненты (микросхемы, транзисторы, полупроводники и т.п.) с экспортом микрочипов  1.Основные партнеры:  42.3% экспорта   Китай и Гонконг, (импорт   22.1%)  14.7% США (импорт   10.3%)  6.5% Япония (импорт   14.7%)  0.3% Россия (импорт   1.3%)Ценные для мира активы.  TSMC, компания  10 в мире по капитализации   крупнейший и наиболее передовой производитель полупроводников с долей рынка 26%. Основной конкурент Samsung.  Foxconn   главный сборщик продукции Apple c долей 40% на рынке электроники.@AK47pfl",
+     "html": "<div class=\"tgme_widget_message_text js-message_text\" dir=\"auto\"><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F87B9F09F87BC.png')\"><b>🇹🇼</b></i> <b>Ключевые цифры Тайваня: за чем гонится Китай.</b> <a href=\"https://t.me/AK47pfl/11884\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">История Тайваня</a>.<b><br></b><br><b>Население <br></b>• Всего 23.3 млн чел — <a href=\"https://en.wikipedia.org/wiki/List_of_countries_by_population_(United_Nations)\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">№56 в мире</a>, и больше <a href=\"https://www.statista.com/statistics/319793/taiwan-population/\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">не растёт</a><br>• Доля городского населения 83% (в Китае 64%, в России 75%)<br>• Медианный возраст <a href=\"https://knoema.ru/atlas/%D0%A2%D0%B0%D0%B9%D0%B2%D0%B0%D0%BD%D1%8C/topics/%D0%94%D0%B5%D0%BC%D0%BE%D0%B3%D1%80%D0%B0%D1%84%D0%B8%D1%8F/%D0%92%D0%BE%D0%B7%D1%80%D0%B0%D1%81%D1%82/%D0%9C%D0%B5%D0%B4%D0%B8%D0%B0%D0%BD%D0%BD%D1%8B%D0%B9-%D0%B2%D0%BE%D0%B7%D1%80%D0%B0%D1%81%D1%82-%D0%BD%D0%B0%D1%81%D0%B5%D0%BB%D0%B5%D0%BD%D0%B8%D1%8F\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">42 года</a> (в Китае <a href=\"https://knoema.ru/atlas/%D0%9A%D0%B8%D1%82%D0%B0%D0%B9/topics/%D0%94%D0%B5%D0%BC%D0%BE%D0%B3%D1%80%D0%B0%D1%84%D0%B8%D1%8F/%D0%92%D0%BE%D0%B7%D1%80%D0%B0%D1%81%D1%82/%D0%9C%D0%B5%D0%B4%D0%B8%D0%B0%D0%BD%D0%BD%D1%8B%D0%B9-%D0%B2%D0%BE%D0%B7%D1%80%D0%B0%D1%81%D1%82-%D0%BD%D0%B0%D1%81%D0%B5%D0%BB%D0%B5%D0%BD%D0%B8%D1%8F#:~:text=%D0%9A%D0%B8%D1%82%D0%B0%D0%B9%20-%20%D0%9C%D0%B5%D0%B4%D0%B8%D0%B0%D0%BD%D0%BD%D1%8B%D0%B9%20%D0%B2%D0%BE%D0%B7%D1%80%D0%B0%D1%81%D1%82%20%D0%BE%D0%B1%D1%89%D0%B5%D0%B3%D0%BE\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">38 лет</a>, в России 40 лет)<br><br><b>Экономика<br></b>• ВВП $785 млрд — <a href=\"https://en.wikipedia.org/wiki/List_of_countries_by_GDP_(nominal)\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">№23<br></a>• ВВП на душу населения $33.4 тыс. — <a href=\"https://en.wikipedia.org/wiki/List_of_countries_by_GDP_(nominal)_per_capita\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">№40<br></a>• Уровень <a href=\"https://ru.tradingeconomics.com/taiwan/unemployment-rate\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">безработицы</a> ~3.7%<br>• Государственный долг 28% ВВП<br>• Валютные <a href=\"https://take-profit.org/statistics/foreign-exchange-reserves/taiwan/\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">резервы</a> $549 млрд (70% ВВП)<br><br><b>Экспорт</b> товаров <a href=\"https://service.mof.gov.tw/public/Data/statistic/trade/news/11012/11012_%E8%8B%B1%E6%96%87%E6%96%B0%E8%81%9E%E7%A8%BF.pdf\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">$446 млрд</a> — <a href=\"https://stats.wto.org/\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">№15</a> в мире.<br>• 38.5% экспорта — электронные компоненты (микросхемы, транзисторы, полупроводники и т.п.) с экспортом микрочипов <a href=\"https://oec.world/en/visualize/tree_map/hs92/export/show/all/168542/2020/\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">№1</a>.<br><br><b>Основные партнеры:</b><br>• 42.3% экспорта — Китай и Гонконг, (импорт — 22.1%)<br>• 14.7% США (импорт — 10.3%)<br>• 6.5% Япония (импорт — 14.7%)<br>…<br>• 0.3% Россия (импорт — 1.3%)<br><br><b>Ценные для мира</b> <b>активы</b>.<br>• TSMC, компания №10 в мире по капитализации — крупнейший и наиболее передовой производитель полупроводников <a href=\"https://investor.tsmc.com/sites/ir/annual-report/2021/2021%20Annual%20Report_E.pdf\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">с долей рынка 26%</a>. Основной конкурент Samsung.<br>• Foxconn — главный сборщик продукции Apple c долей <a href=\"https://image.honhai.com/financy_by_year/%E9%B4%BB%E6%B5%B7109%E5%B9%B4%E5%A0%B1_EN-v2_(2).pdf\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">40% на рынке электроники</a>.<br><br><a href=\"https://t.me/AK47pfl\" target=\"_blank\">@AK47pfl</a></div>",
+     "publishedAt": "2022-04-15 11:10:00",
+     "index": 15,
+     "md5": "14e44b500c893470087c82027e392123"
+    },
+    "page": {
+     "title": "РынкиДеньгиВласть | РДВ",
+     "description": "<div class=\"tgme_channel_info_description\"><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F949D.png')\"><b>🔝</b></i> аналитика по российскому рынку ценных бумаг, которая ранее была доступна лишь финансовым элитам. Впереди брокеров и банков.<br><br>Стратегические вопросы: <a href=\"https://t.me/dragonwoo\" target=\"_blank\">@dragonwoo</a><br><br>Реклама - агент PR Fintech: <a href=\"https://t.me/arina_promo\" target=\"_blank\">@arina_promo</a><br><br>Сервис для инвесторов и трейдеров <a href=\"https://t.me/RDVPREMIUMbot\" target=\"_blank\">@RDVPREMIUMbot</a></div>",
+     "image": "https://cdn4.telegram-cdn.org/file/X3RZTkJ6BTu6VcpAiW3OCGxjezSTNGTyuW6BsBFNFsakzKUZyPc1c-RWWWdUic7HIDYiT5ygx44S6tAjy7L2GeNw3egyZtvz0FKkCagmo2mf3B4VZKvJ1mUVaKDiiaPwcA1xTKbxCeRfRGjmzLSesiRxu-gVrLnzD7oZ62tXaKDqaqLcw_dazSi_6rFjUnQRKoIJ2LPdPwjlHiR8cqN7VnD4RbGlNEf6h39my38JIFcdO_F28pO4_c3uds5eJVfqv3fM6WaOFonRaR3QnopWKTnU8jJTa6Vc9NfGxp9-F9MnqXYhwES98VpwgFudCUS60MrcMQSXBxS_IQOfQh_eAg.jpg"
+    }
+   },
+   "scheduler": {
+    "task": {
+     "params": {
+      "type": "telegram",
+      "channel": "AK47pfl"
+     },
+     "state": "processed",
+     "processedAt": "2022-04-15 17:38:29"
+    }
+   }
+  }
+ },
+ {
+  "service": {
+   "scraper": {
+    "message": {
+     "text": "  Частные инвесторы как класс перестали покупать акции. Весь рынок в марте выкупали крупнейшие банки. ЦБ выпустил отчёт о рынке РФ за февраль-март.В феврале на частных инвесторов пришёлся основной спрос на акции, они покупали в противовес продажам иностранцев. А в марте наоборот   физлица продали больше, чем купили (см. график).Основными покупателями стали банки (СЗКО*), которые выкупали акции у всех других участников рынка. Всего российские банки в марте купили акций на 46 млрд рублей.А основными продавцами   некредитные финансовые организации (НФО), а именно, преимущественно, профучастники РЦБ, управляющие компании, паевые фонды. Они продали акций на 20.9 млрд  руб.*Системно значимые кредитные организации (СЗКО)   13 крупнейших банков РФ, в их числе: ВТБ, Сбер, Тинькофф, Альфа и др.@AK47pfl",
+     "html": "<div class=\"tgme_widget_message_text js-message_text\" dir=\"auto\"><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F94A5.png')\"><b>🔥</b></i> <b>Частные инвесторы как класс перестали покупать акции</b>. <b>Весь рынок в марте выкупали</b> <b>крупнейшие банки.</b> ЦБ выпустил <a href=\"http://www.cbr.ru/Collection/Collection/File/40925/ORFR_2022-02-03.pdf\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">отчёт о рынке</a> РФ за февраль-март.<br><br>В феврале на частных инвесторов пришёлся основной спрос на акции, они покупали в противовес продажам иностранцев. А в марте наоборот — физлица продали больше, чем купили (см. график).<br><br><u>Основными покупателями</u> стали банки (СЗКО*), которые выкупали акции у всех других участников рынка. Всего российские банки в марте купили акций на 46 млрд рублей.<br><br><u>А основными продавцами</u> — некредитные финансовые организации (НФО), а именно, преимущественно, профучастники РЦБ, управляющие компании, паевые фонды. Они продали акций на 20.9 млрд  руб.<br><br><i>*Системно значимые кредитные организации (СЗКО) — <a href=\"https://cbr.ru/banking_sector/credit/SystemBanks.html/\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">13 крупнейших банков РФ</a>, в их числе: ВТБ, Сбер, Тинькофф, Альфа и др.</i><br><br><a href=\"https://t.me/AK47pfl\" target=\"_blank\">@AK47pfl</a></div>",
+     "publishedAt": "2022-04-15 11:46:40",
+     "index": 16,
+     "md5": "38ec0cfda4cd584541116b7c04d4e908"
+    },
+    "page": {
+     "title": "РынкиДеньгиВласть | РДВ",
+     "description": "<div class=\"tgme_channel_info_description\"><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F949D.png')\"><b>🔝</b></i> аналитика по российскому рынку ценных бумаг, которая ранее была доступна лишь финансовым элитам. Впереди брокеров и банков.<br><br>Стратегические вопросы: <a href=\"https://t.me/dragonwoo\" target=\"_blank\">@dragonwoo</a><br><br>Реклама - агент PR Fintech: <a href=\"https://t.me/arina_promo\" target=\"_blank\">@arina_promo</a><br><br>Сервис для инвесторов и трейдеров <a href=\"https://t.me/RDVPREMIUMbot\" target=\"_blank\">@RDVPREMIUMbot</a></div>",
+     "image": "https://cdn4.telegram-cdn.org/file/X3RZTkJ6BTu6VcpAiW3OCGxjezSTNGTyuW6BsBFNFsakzKUZyPc1c-RWWWdUic7HIDYiT5ygx44S6tAjy7L2GeNw3egyZtvz0FKkCagmo2mf3B4VZKvJ1mUVaKDiiaPwcA1xTKbxCeRfRGjmzLSesiRxu-gVrLnzD7oZ62tXaKDqaqLcw_dazSi_6rFjUnQRKoIJ2LPdPwjlHiR8cqN7VnD4RbGlNEf6h39my38JIFcdO_F28pO4_c3uds5eJVfqv3fM6WaOFonRaR3QnopWKTnU8jJTa6Vc9NfGxp9-F9MnqXYhwES98VpwgFudCUS60MrcMQSXBxS_IQOfQh_eAg.jpg"
+    }
+   },
+   "scheduler": {
+    "task": {
+     "params": {
+      "type": "telegram",
+      "channel": "AK47pfl"
+     },
+     "state": "processed",
+     "processedAt": "2022-04-15 17:38:29"
+    }
+   }
+  }
+ },
+ {
+  "service": {
+   "scraper": {
+    "message": {
+     "text": "  После открытия рынка в марте акции покупали массовые инвесторы, а наиболее богатые   продавали. Это следует из отчёта ЦБ о рынке РФ за февраль-март.Продажи акций осуществлялись со стороны инвесторов с крупными позициями, в то время как физлица с более скромным портфелем предпочитали приобретать акции. Суммарно в марте продажи частных инвесторов превысили покупки.Один и тот же объём в рублях, в среднем, продавало в 3 раза меньше частных инвесторов, чем покупало (см. таблицу).@AK47pfl",
+     "html": "<div class=\"tgme_widget_message_text js-message_text\" dir=\"auto\"><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F90B9.png')\"><b>🐹</b></i> <b>После открытия рынка</b> <b>в марте</b> <b>акции покупали массовые инвесторы, а наиболее богатые — продавали.</b> Это следует из отчёта ЦБ <a href=\"http://www.cbr.ru/Collection/Collection/File/40925/ORFR_2022-02-03.pdf\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">о рынке</a> РФ за февраль-март.<br><br>Продажи акций осуществлялись со стороны инвесторов с крупными позициями, в то время как физлица с более скромным портфелем предпочитали приобретать акции. <a href=\"https://t.me/AK47pfl/11889\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">Суммарно в марте</a> продажи частных инвесторов превысили покупки.<br><br>Один и тот же объём в рублях, в среднем, продавало в 3 раза меньше частных инвесторов, чем покупало (см. таблицу).<br><br><a href=\"https://t.me/AK47pfl\" target=\"_blank\">@AK47pfl</a></div>",
+     "publishedAt": "2022-04-15 12:29:27",
+     "index": 17,
+     "md5": "5f8503c469638e3998fe9ef9a38cdf7a"
+    },
+    "page": {
+     "title": "РынкиДеньгиВласть | РДВ",
+     "description": "<div class=\"tgme_channel_info_description\"><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F949D.png')\"><b>🔝</b></i> аналитика по российскому рынку ценных бумаг, которая ранее была доступна лишь финансовым элитам. Впереди брокеров и банков.<br><br>Стратегические вопросы: <a href=\"https://t.me/dragonwoo\" target=\"_blank\">@dragonwoo</a><br><br>Реклама - агент PR Fintech: <a href=\"https://t.me/arina_promo\" target=\"_blank\">@arina_promo</a><br><br>Сервис для инвесторов и трейдеров <a href=\"https://t.me/RDVPREMIUMbot\" target=\"_blank\">@RDVPREMIUMbot</a></div>",
+     "image": "https://cdn4.telegram-cdn.org/file/X3RZTkJ6BTu6VcpAiW3OCGxjezSTNGTyuW6BsBFNFsakzKUZyPc1c-RWWWdUic7HIDYiT5ygx44S6tAjy7L2GeNw3egyZtvz0FKkCagmo2mf3B4VZKvJ1mUVaKDiiaPwcA1xTKbxCeRfRGjmzLSesiRxu-gVrLnzD7oZ62tXaKDqaqLcw_dazSi_6rFjUnQRKoIJ2LPdPwjlHiR8cqN7VnD4RbGlNEf6h39my38JIFcdO_F28pO4_c3uds5eJVfqv3fM6WaOFonRaR3QnopWKTnU8jJTa6Vc9NfGxp9-F9MnqXYhwES98VpwgFudCUS60MrcMQSXBxS_IQOfQh_eAg.jpg"
+    }
+   },
+   "scheduler": {
+    "task": {
+     "params": {
+      "type": "telegram",
+      "channel": "AK47pfl"
+     },
+     "state": "processed",
+     "processedAt": "2022-04-15 17:38:29"
+    }
+   }
+  }
+ },
+ {
+  "service": {
+   "scraper": {
+    "message": {
+     "text": "  РДВ и вице-премьер РФ Александр Новак про отказ Европы от российских энергоносителей.Газ  Новак: У ЕС недостаточно инфраструктуры, чтобы заменить российский газ СПГ.  РДВ: Европе не заменить российский газ на СПГ в ближайшие годы.Нефть  Новак: Российские нефть и газ не заменить на горизонте 5-10 лет. Крупные ограничения поставок чреваты новыми рекордами цен.  РДВ: 5 почему ЕС не может немедленно отказаться от импорта российской нефти и нефтепродуктов. Даже спекуляции о возможном запрете приводят к резкому росту цен на нефть.@AK47pfl",
+     "html": "<div class=\"tgme_widget_message_text js-message_text\" dir=\"auto\"><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F8F86.png')\"><b>🏆</b></i> <b>РДВ и вице-премьер РФ Александр Новак про отказ Европы от российских энергоносителей.</b><br><br><u>Газ</u><br>• <a href=\"https://t.me/cbrstocks/35420\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">Новак:</a> У ЕС недостаточно инфраструктуры, чтобы заменить российский газ СПГ.<br>• <a href=\"https://t.me/AK47pfl/11743\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">РДВ:</a> Европе не заменить российский газ на СПГ в ближайшие годы.<br><br><u>Нефть</u><br>• <a href=\"https://t.me/cbrstocks/35420\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">Новак:</a> Российские нефть и газ не заменить на горизонте 5-10 лет. Крупные ограничения поставок чреваты новыми рекордами цен.<br>• <a href=\"https://t.me/AK47pfl/11733\" target=\"_blank\" rel=\"noopener\" onclick=\"return confirm('Open this link?\\n\\n'+this.href);\">РДВ:</a> 5 почему ЕС не может немедленно отказаться от импорта российской нефти и нефтепродуктов. Даже спекуляции о возможном запрете приводят к резкому росту цен на нефть.<br><br><a href=\"https://t.me/AK47pfl\" target=\"_blank\">@AK47pfl</a></div>",
+     "publishedAt": "2022-04-15 15:00:48",
+     "index": 18,
+     "md5": "4833e028b5c0bd42c8c3150c21d66851"
+    },
+    "page": {
+     "title": "РынкиДеньгиВласть | РДВ",
+     "description": "<div class=\"tgme_channel_info_description\"><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F949D.png')\"><b>🔝</b></i> аналитика по российскому рынку ценных бумаг, которая ранее была доступна лишь финансовым элитам. Впереди брокеров и банков.<br><br>Стратегические вопросы: <a href=\"https://t.me/dragonwoo\" target=\"_blank\">@dragonwoo</a><br><br>Реклама - агент PR Fintech: <a href=\"https://t.me/arina_promo\" target=\"_blank\">@arina_promo</a><br><br>Сервис для инвесторов и трейдеров <a href=\"https://t.me/RDVPREMIUMbot\" target=\"_blank\">@RDVPREMIUMbot</a></div>",
+     "image": "https://cdn4.telegram-cdn.org/file/X3RZTkJ6BTu6VcpAiW3OCGxjezSTNGTyuW6BsBFNFsakzKUZyPc1c-RWWWdUic7HIDYiT5ygx44S6tAjy7L2GeNw3egyZtvz0FKkCagmo2mf3B4VZKvJ1mUVaKDiiaPwcA1xTKbxCeRfRGjmzLSesiRxu-gVrLnzD7oZ62tXaKDqaqLcw_dazSi_6rFjUnQRKoIJ2LPdPwjlHiR8cqN7VnD4RbGlNEf6h39my38JIFcdO_F28pO4_c3uds5eJVfqv3fM6WaOFonRaR3QnopWKTnU8jJTa6Vc9NfGxp9-F9MnqXYhwES98VpwgFudCUS60MrcMQSXBxS_IQOfQh_eAg.jpg"
+    }
+   },
+   "scheduler": {
+    "task": {
+     "params": {
+      "type": "telegram",
+      "channel": "AK47pfl"
+     },
+     "state": "processed",
+     "processedAt": "2022-04-15 17:38:29"
+    }
+   }
+  }
+ },
+ {
+  "service": {
+   "scraper": {
+    "message": {
+     "text": "#MTSS  В повестку годового собрания МТС 22 июня будет включен вопрос о дивидендах за 2021 финансовый год.",
+     "html": "<div class=\"tgme_widget_message_text js-message_text\" dir=\"auto\"><a href=\"?q=%23MTSS\">#MTSS</a><br><b><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/E29AA1.png')\"><b>⚡️</b></i><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/E29AA1.png')\"><b>⚡️</b></i> В повестку годового собрания МТС 22 июня будет включен вопрос о дивидендах за 2021 финансовый год</b>.</div>",
+     "publishedAt": "2022-04-15 15:26:27",
+     "index": 19,
+     "md5": "31581aa94389e3c222cde3f625f6205a"
+    },
+    "page": {
+     "title": "РынкиДеньгиВласть | РДВ",
+     "description": "<div class=\"tgme_channel_info_description\"><i class=\"emoji\" style=\"background-image:url('//telegram.org/img/emoji/40/F09F949D.png')\"><b>🔝</b></i> аналитика по российскому рынку ценных бумаг, которая ранее была доступна лишь финансовым элитам. Впереди брокеров и банков.<br><br>Стратегические вопросы: <a href=\"https://t.me/dragonwoo\" target=\"_blank\">@dragonwoo</a><br><br>Реклама - агент PR Fintech: <a href=\"https://t.me/arina_promo\" target=\"_blank\">@arina_promo</a><br><br>Сервис для инвесторов и трейдеров <a href=\"https://t.me/RDVPREMIUMbot\" target=\"_blank\">@RDVPREMIUMbot</a></div>",
+     "image": "https://cdn4.telegram-cdn.org/file/X3RZTkJ6BTu6VcpAiW3OCGxjezSTNGTyuW6BsBFNFsakzKUZyPc1c-RWWWdUic7HIDYiT5ygx44S6tAjy7L2GeNw3egyZtvz0FKkCagmo2mf3B4VZKvJ1mUVaKDiiaPwcA1xTKbxCeRfRGjmzLSesiRxu-gVrLnzD7oZ62tXaKDqaqLcw_dazSi_6rFjUnQRKoIJ2LPdPwjlHiR8cqN7VnD4RbGlNEf6h39my38JIFcdO_F28pO4_c3uds5eJVfqv3fM6WaOFonRaR3QnopWKTnU8jJTa6Vc9NfGxp9-F9MnqXYhwES98VpwgFudCUS60MrcMQSXBxS_IQOfQh_eAg.jpg"
+    }
+   },
+   "scheduler": {
+    "task": {
+     "params": {
+      "type": "telegram",
+      "channel": "AK47pfl"
+     },
+     "state": "processed",
+     "processedAt": "2022-04-15 17:38:29"
+    }
+   }
+  }
+ }
+]
+---------------------------------------------------------------  
 
 ```
-
-Для виконання з зовнішніми налаштуваннями треба окремо виносити ці налаштування та використовувати:
-
-```sh
-npm run debug ./src/scanany/telegram1.yml ./test/params/tg1.params.yml 
-
-```
-
-параметри з файлу ```./test/params/tg1.params.yml``` будуть передані в скрипт ./src/scanany/telegram1.yml.
-
-В консольному виводі з'явиться додаткова секція ```Call with params```:
-
-```sh
----------------------------------------------------------------                                                                   
-Debug scanany script: D:\MOLFAR\scanany-scripts\src\scanany\telegram1.yml                                                         
+                                                        
                                                                                                                                   
 - use:                                                                                                                            
     # Использование HTTP-запросов                                                                                                 

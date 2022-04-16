@@ -1,0 +1,45 @@
+# Скрипт picuki.yml призначений для вибірки повідомлень з ресурсу https://www.academia.edu/ за допомогою
+# скрапера [scanany](https://github.com/boldak/scanany)
+
+# Входить до складу проекту [@molfar](https://github.com/wdc-molfar)
+
+
+# Відлагодження відбувається за допомою команди:
+
+# ```sh
+# npm run debug <path to script> [<path to settings>]
+# ```
+
+# Наприклад:
+
+# ```sh
+# npm run debug ./src/scanany/academia.yml ./test/params/academia.params.yml
+# ```  
+
+# Вхідні дані формуються планувальником завдань на основі оброблення бази даних медіа-джерел.
+
+# Приклад вхідних даних (```./test/params/academia.params.yml```):
+
+# ```yaml
+# service: 
+#   scheduler:
+#     task:
+#       params:
+#         type: academia
+#         profile: kyiv.operative
+#       state: planned   
+# ```
+
+
+# ** Опис алгоритму
+
+
+# Використовуються плагіни ```axios-plugin```, ```cheerio-plugin```, ```js-plugin```
+ 
+- use: 
+    - axios-plugin
+    - cheerio-plugin
+    - js-plugin
+
+# Попереднє оброблення вхідних даних
+

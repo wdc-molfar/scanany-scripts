@@ -851,7 +851,7 @@ Scanany result:
 
 ```                                                                                                                              
 
-## :
+## Використання плагінів
 ```yml
 - use:
   - axios-plugin #використання HTTP-запитів

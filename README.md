@@ -851,17 +851,18 @@ Scanany result:
 
 ```                                                                                                                              
 
-## use:
-  Використання HTTP-запитів
-  - axios-plugin
-  використання бібліотеки cheerio
-  - cheerio-plugin
-  використання js-інʼєкцій
-  - js-plugin                                                                                                                   
-                                                                                                                   
+## :
+```yml
+- use:
+  - axios-plugin #використання HTTP-запитів
+  - cheerio-plugin #використання бібліотеки cheerio
+  - js-plugin #використання js-інʼєкцій                                                                                                                
+```
+
 ## Вхідні дані формуються планувальником завдань на основі оброблення бази даних медіа-джерел.
 
-## Приклад вхідних даних (```./test/params/telegram.params.yml```):
+## Приклад вхідних даних:
+```./test/params/telegram.params.yml```
 
 ```yaml
 service: 

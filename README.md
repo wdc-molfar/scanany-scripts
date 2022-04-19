@@ -885,7 +885,9 @@ service:
 ...
                                                                                                                                 
 # Повертаємо зі сценарію спрапінга значення "messages"                                                                            
-- return: messages                                                                                                                
+```yml
+- return: messages    
+```
 --------------------------------------------------------------- 
 
 Приклади скриптів та використання plugins можна знайти [тут](https://github.com/boldak/scanany/tree/master/examples/yaml) або на [онлайн-сервісі](http://scanany.herokuapp.com)

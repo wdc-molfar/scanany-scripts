@@ -849,46 +849,43 @@ Scanany result:
 ]
 ---------------------------------------------------------------  
 
+```                                                                                                                              
+
+## use:
+  Використання HTTP-запитів
+  - axios-plugin
+  використання бібліотеки cheerio
+  - cheerio-plugin
+  використання js-інʼєкцій
+  - js-plugin                                                                                                                   
+                                                                                                                   
+## Вхідні дані формуються планувальником завдань на основі оброблення бази даних медіа-джерел.
+
+## Приклад вхідних даних (```./test/params/telegram.params.yml```):
+
+```yaml
+service: 
+  scheduler:
+    task:
+      params:
+        type: telegram
+        profile: JeffDean
+      state: planned   
 ```
-                                                        
-                                                                                                                                  
-- use:                                                                                                                            
-    # Использование HTTP-запросов                                                                                                 
-    - axios-plugin                                                                                                                
-    # Использование библиотеки cheerio                                                                                            
-    - cheerio-plugin                                                                                                              
-    # Использование js-инъекций                                                                                                   
-    - js-plugin                                                                                                                   
+
+## Параметри, які передаються в cкрипт і доступ до них здійснюється за допомогою $ref, мають наступний вигляд, наприклад:
+
+```yml
+- $ref: service.scheduler.task.params.channel
+      transform:
+        js: (command, context, value) => `https://t.me/s/${value}`
+      into: url
+``` 
 
 ...
-
-                                                                                                                                  
-# Возвращаем из сценария скрапинга значение "messages"                                                                            
+                                                                                                                                
+# Повертаємо зі сценарію спрапінга значення "messages"                                                                            
 - return: messages                                                                                                                
----------------------------------------------------------------                                                                   
-Call with params: D:\MOLFAR\scanany-scripts\test\params\tg1.params.yml                                                            
-                                                                                                                                  
-# Параметри, які передаються в скрипт                                                                                             
-# Доступ до них здійснюється за допомогою $ref                                                                                    
-# Наприклад                                                                                                                       
-# - $ref: params.channel # ("AK47pfl")                                                                                            
-#       transform:                                                                                                                
-#         js: (command, context, value) => `https://t.me/s/${value}` # ("https://t.me/s/AK47pfl")                                 
-#       into: params.url                                                                                                          
-                                                                                                                                  
-params:                                                                                                                           
-  type: telegram                                                                                                                  
-  channel: AK47pfl                                                                                                                
----------------------------------------------------------------                                                                   
-Scanany result:                                                                                                                   
-                                                                                                                                  
-[                                                                                                                                 
-  {                                                                                                                               
-    metadata: {                                                                                                                   
-      text: '  Геополитический апдейт: пока ситуация развивается по дипломатическому пути.  Последние события:  Байден: говорил
-
- ...     
-
-```
+--------------------------------------------------------------- 
 
 Приклади скриптів та використання plugins можна знайти [тут](https://github.com/boldak/scanany/tree/master/examples/yaml) або на [онлайн-сервісі](http://scanany.herokuapp.com)

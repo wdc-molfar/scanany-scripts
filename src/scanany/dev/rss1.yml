@@ -1,0 +1,20 @@
+
+
+- use: rss-plugin
+
+
+- map:
+    - $const:
+        task:
+          params: ## from section source
+            url: https://rss.unian.net/site/news_rus.rss
+          instance: b940bfda-d145-4385-9dc6-c347dcd0fbcf ## scheduler instance   
+      into: options  
+
+- rss:
+    url:
+      $ref: options.task.params.url
+    into: feed     
+
+- return: feed    
+     

@@ -1,0 +1,10 @@
+
+
+- use: rss-plugin 
+
+- rss:
+    url: https://rss.unian.net/site/news_rus.rss
+    into: feed     
+
+- return: feed    
+     

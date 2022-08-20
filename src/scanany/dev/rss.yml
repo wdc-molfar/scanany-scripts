@@ -1,0 +1,64 @@
+- use: rss-plugin 
+- use: js-plugin
+
+
+
+- map:
+    - $const:
+        task:
+          script: ""
+          params: ## from section source
+            url: https://rss.unian.net/site/news_rus.rss
+          instance: b940bfda-d145-4385-9dc6-c347dcd0fbcf ## scheduler instance   
+          generatedAt: 2022-08-18T12:04:51.474Z  
+            
+        ## WORKFLOW scraper => next ms in workflow
+
+        scraper:
+          instance: b940bfda-d145-4385-9dc6-c347dcd0fbcf ## scraper instance   
+      into: options    
+      
+
+- rss:
+    url: 
+      $ref: options.task.params.url
+    into: feed
+
+- each:
+    in:
+      $ref: feed.items
+    as: $item
+    indexed-by: $index      
+    into: messages       
+    apply:
+      - map:
+          - $ref: options
+            into: res
+          
+          - $ref: $item.title
+            into: res.scraper.message.title
+          
+          - $ref: $item.content
+            into: res.scraper.message.text
+          
+          - $ref: $item.isoDate
+            into: res.scraper.message.publishedAt  
+
+          - $ref: $item.link
+            into: res.scraper.message.links[0]  
+
+          - $ref: $item.enclosure
+            into: res.scraper.message.images[0]   
+
+          - transform: date
+            into: res.scraper.scrapedAt  
+
+          - $ref: res.scraper.message.text
+            transform: md5
+            into: res.scraper.message.md5 
+
+      - return: res
+         
+
+- return: messages    
+

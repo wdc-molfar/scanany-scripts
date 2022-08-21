@@ -1,8 +1,7 @@
 
-service: 
-  scheduler:
-    task:
-      params:
-        type: telegram
-        channel: AK47pfl
-      state: planned
+task:
+  script: "this is scanany script of process source"
+  params: ## from section source
+    url: https://t.me/s/AK47pfl
+  instance: b940bfda-d145-4385-9dc6-c347dcd0fbcf ## scheduler instance   
+  generatedAt: 2022-08-18T12:04:51.474Z 

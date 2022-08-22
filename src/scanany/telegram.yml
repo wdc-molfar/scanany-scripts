@@ -1,0 +1,244 @@
+# Скрипт telegram.yml призначений для вибірки текстів повідомлень з ресурсу https://telegram.org за допомогою
+# скрапера [scanany](https://github.com/boldak/scanany)
+
+# Входить до складу проекту [@molfar](https://github.com/wdc-molfar)
+
+
+# Відлагодження відбувається за допомою команди:
+
+# ```sh
+# npm run debug <path to script> [<path to settings>]
+# ```
+
+# Наприклад:
+
+# ```sh
+# npm run debug ./src/scanany/telegram.yml ./test/params/telegram.params.yml
+# ```  
+
+# Вхідні дані формуються планувальником завдань на основі оброблення бази даних медіа-джерел.
+
+# Приклад вхідних даних (```./test/params/telegram.params.yml```):
+
+# ```yaml
+# service: 
+#   scheduler:
+#     task:
+#       params:
+#         type: telegram
+#         profile: JeffDean
+#       state: planned   
+# ```
+
+
+# ** Опис алгоритму
+
+
+# Використовуються плагіни для HTTP-запросов ```axios-plugin```, ```cheerio-plugin```, ```js-plugin```
+
+- use:     
+    - axios-plugin
+    - cheerio-plugin
+    - js-plugin
+
+# Попереднє оброблення вхідних даних
+- map:
+    # Формування url зі списком публікацій на основі вихідних даних (змінна ```url```)
+    - $ref: options.task.params.url
+      into: url         
+
+# вибір даних із джерела
+# вибірка та оброблення сторінки зі стрічкою публікацій з використанням ```axios-plugin``` за адресою ```url``` 
+- fetch:
+    request:
+      method: GET
+      url: 
+        $ref: url
+    # перетворюємо відповідь (response) об'єкт cheerio      
+    transform:
+      apply:
+        #  вибірка значення response.data       
+        - project: data
+        # перетворення в об'єкт cheerio      
+        - html->$
+    # результат перетворення записуємо в змінну "page"      
+    into: page
+
+# вибірка із "page" ім'я каналу (селектор ```div.tgme_channel_info_header_title > span```)
+- once:
+    $ref: page
+    select: div.tgme_channel_info_header_username > a
+    apply:
+      # перетворення text в змінну ```text```    
+      transform: text
+      # результат оброблення буде поміщений у ```author.title```
+      into: author.name
+
+# вибірка із "page" заголовка каналу (селектор ```div.tgme_channel_info_header_title > span```)
+- once:
+    $ref: page
+    select: div.tgme_channel_info_header_title > span
+    apply:
+      # перетворення text в змінну ```text```    
+      transform: text
+      # результат оброблення буде поміщений у ```a.title```
+      into: author.title
+
+# вибірка із "page" html опису каналу (CSS-селектор селектор ```div.tgme_channel_info_description```)
+- once:
+    $ref: page
+    select: div.tgme_channel_info_description
+    apply:
+      # перетворення вибраного елемента в text
+      - transform: 
+          apply:
+            - text
+            - js: '(command, context, value) => value.replace(/[\u2000-\uffff]+/g, " ")'
+        # результат оброблення буде поміщений у ```author.description```
+        into: author.text
+ 
+# вибірка із "page" html опису каналу (CSS-селектор селектор ```div.tgme_channel_info_description```)
+- once:
+    $ref: page
+    select: div.tgme_channel_info_description
+    apply:
+      # переворення вибраного елемента в html     
+      transform: html
+      # результат оброблення буде поміщений у ```a.description```
+      into: author.description
+
+# вибірка із "page" аватара каналу (CSS-селектор ```div.tgme_channel_info > div.tgme_channel_info_header > i > img```)
+- once:
+    $ref: page
+    select: div.tgme_channel_info > div.tgme_channel_info_header > i > img
+    apply:
+       -  transform: 
+            apply:
+              # вибірка із вибраного елемента атрибута ```"src" -> { src: "<<value>>"}```   
+              - attributes: src
+              # повернення значення поля "src" 
+              - project: src 
+          # запис результату перетворення в "author.image"
+          into: author.image
+
+# вибірка из "page" всіх повідомлень (CSS-селектор ```div.tgme_widget_message_bubble```) 
+- all:
+    $ref: page
+    select: div.tgme_widget_message_bubble
+    # запис колекції повідомлень в ```res```
+    into: res
+        
+# Оброблення елементів колекції   
+- each:
+    # колекція
+    in:
+      $ref: res
+    # поточний елемент ```item```
+    as: item
+    indexed-by: index
+    # результат оброблення буде поміщений у ```scraper```
+    into: messages
+    
+    # алгоритм оброблення поточного елемента ```item```
+    apply:
+    
+      - map:
+          $ref: item
+          # перетворення tem -> html -> объект cheerio
+          transform: 
+            apply:
+              - html
+              - html->$
+          # результат оброблення буде поміщений у ```msg```
+          into: msg
+      
+      # вибірка із "msg" тексту повідомлення (CSS-селектор ```div.tgme_widget_message_text```)
+      - once:
+          $ref: msg
+          select: div.tgme_widget_message_text
+          apply:  
+            # перетворення вибраного елемента в text та поміщення його в змінну ```message.text```
+            - transform: 
+                apply:
+                  - text
+                  - js: '(command, context, value) => value.replace(/[\u2000-\uffff]+/g, " ")'
+              into: message.text
+            
+            # перетворення вибраного елемента в html та поміщення його в змінну ```message.html```
+            - transform: html
+              into: message.raw.html
+
+      # вибірка із "msg" часу публікації повідомлення (CSS-селектор ```time```)
+      - once:
+          $ref: msg
+          select: time
+          apply:
+            # отримання часу публікації
+            - transform: 
+                # забираємо із вибраного елемента ```time``` атрибут "datetime" та перетворення його у формат ```YYYY-MM-DD HH:mm:ss```         
+                apply:
+                  - attributes: datetime
+                  - project: datetime
+              # результат оброблення буде поміщений у ```message.publishedAt```
+              into: message.publishedAt
+      
+      # вибірка із "msg" зображень (CSS-селектор ```div.tgme_channel_info > div.tgme_channel_info_header > i > img```)
+      - once:
+          $ref: msg
+          select: a.tgme_widget_message_photo_wrap
+          apply:
+             -  transform: 
+                  apply:
+                    # вибірка із вибраного елемента атрибута ```"style" -> { style: "<<value>>"}```   
+                    - attributes: style
+                    # повернення значення поля "style" 
+                    - project: style
+                # запис результату перетворення в "images"
+                into: images
+
+    #  # вибірка із "msg" посилань (CSS-селектор ```div.tgme_channel_info > div.tgme_channel_info_header > i > img```)
+    #  - once:
+    #      $ref: msg
+    #      select: div.tgme_widget_message_text
+    #      apply:
+    #         -  transform: 
+    #              apply:
+    #                # вибірка із вибраного елемента атрибута ```"style" -> { style: "<<value>>"}```   
+    #                - attributes: style
+    #                # повернення значення поля "style" 
+    #                - project: style
+    #            # запис результату перетворення в "images"
+    #            into: links
+
+      - map:
+        # помістити інформацію про task у ```m.task```
+        - $ref: options
+          into: m
+
+        # перетворення ```message.text``` в сигнатуру md5
+        - $ref: message.text
+          transform: md5
+          # результат оброблення буде поміщений у ```m.scraper.instance```
+          into: m.scraper.md5
+
+        # Обчислення поточної дати в форматі iso та поміщення її у ```m.scraper.scrapedAt```
+        - transform: date
+          into: m.scraper.scrapedAt
+
+        - $ref: message
+          into: m.scraper.message
+
+        - $ref: author
+          into: m.scraper.message.author
+
+        - $ref: images
+          into: m.scraper.message.images
+
+        #- $ref: links
+        - $ref: message.raw.html
+          into: m.scraper.message.links
+
+      # повернення результату оброблення поточного елемента ```item``` колекції ```res``` в ```m```       
+      - return: m
+
+- return: messages

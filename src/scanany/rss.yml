@@ -18,7 +18,10 @@
           - $ref: $item.content
             into: res.scraper.message.text
           - $ref: $item.content
-            into: res.scraper.message.raw.text\
+            into: res.scraper.message.raw.text
+          - $ref: $item.content
+            transform: md5
+            into: res.scraper.message.md5
           - $ref: $item.link
             into: res.scraper.message.links[0]
           - $ref: $item.enclosure

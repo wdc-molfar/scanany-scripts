@@ -19,20 +19,20 @@
 # Вхідні дані формуються планувальником завдань на основі оброблення бази даних медіа-джерел.
 
 # Приклад вхідних даних (```./test/params/telegram.params.yml```):
-
 # ```yaml
-# service: 
-#   scheduler:
-#     task:
-#       params:
-#         type: telegram
-#         profile: JeffDean
-#       state: planned   
+#options:
+#  task:
+#    params: ## from section source
+#      url: https://t.me/s/AK47pfl
+#    instance: b940bfda-d145-4385-9dc6-c347dcd0fbcf ## scheduler instance   
+#  scraper:
+#    instance: b940bfda-d145-4385-9dc6-c347dcd0fbcf ## scraper instance   
+#    scrapedAt: 2022-08-18T12:04:51.474Z     
 # ```
 
 # ** Опис алгоритму
 
-# Використовуються плагіни для HTTP-запросов ```axios-plugin```, ```cheerio-plugin```, ```js-plugin```
+# Використовуються плагіни ```axios-plugin``` для HTTP-запитів, ```cheerio-plugin```, ```js-plugin```
 - use:     
     - axios-plugin
     - cheerio-plugin
@@ -69,7 +69,7 @@
     apply:
     
       - map:
-    
+          # поміщення ```options``` в ```res```
           - $ref: options
             into: res
 

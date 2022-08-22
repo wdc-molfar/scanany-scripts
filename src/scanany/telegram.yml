@@ -34,7 +34,7 @@
 # ** Опис алгоритму
 
 
-# Використовуються плагіни для HTTP-запросов ```axios-plugin```, ```cheerio-plugin```, ```js-plugin``` для js-інʼєкций
+# Використовуються плагіни для HTTP-запросов ```axios-plugin```, ```cheerio-plugin```, ```js-plugin```
 
 - use:     
     - axios-plugin
@@ -43,9 +43,8 @@
 
 # Попереднє оброблення вхідних даних
 - map:
-    
     # Формування url зі списком публікацій на основі вихідних даних (змінна ```url```)
-    - $ref: task.params.url
+    - $ref: options.task.params.url
       into: url         
 
 # вибір даних із джерела
@@ -180,8 +179,6 @@
                 apply:
                   - attributes: datetime
                   - project: datetime
-                  - date
-                  - moment.format: YYYY-MM-DD HH:mm:ss
               # результат оброблення буде поміщений у ```message.publishedAt```
               into: message.publishedAt
       
@@ -215,21 +212,18 @@
 
       - map:
         # помістити інформацію про task у ```m.task```
-        - $ref: task
-          into: m.task
+        - $ref: options
+          into: m
 
         # перетворення ```message.text``` в сигнатуру md5
         - $ref: message.text
           transform: md5
           # результат оброблення буде поміщений у ```m.scraper.instance```
-          into: m.scraper.instance
+          into: m.scraper.md5
 
-        # Обчислення поточної дати в форматі ```YYYY-MM-DD HH:mm:ss``` та поміщення її у ```service.scheduler.task.processedAt```
-        - transform:
-            apply:
-              - date
-              - moment.format: YYYY-MM-DD HH:mm:ss    
-          into: m.scraper.scrapedAt 
+        # Обчислення поточної дати в форматі iso та поміщення її у ```m.scraper.scrapedAt```
+        - transform: date
+          into: m.scraper.scrapedAt
 
         - $ref: message
           into: m.scraper.message

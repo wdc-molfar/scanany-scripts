@@ -1,40 +1,98 @@
+# Скрипт rss.yml призначений для вибірки текстів повідомлень зі стрічки RSS за допомогою
+# скрапера [scanany](https://github.com/boldak/scanany)
+
+# Входить до складу проекту [@molfar](https://github.com/wdc-molfar)
+
+
+# Відлагодження відбувається за допомою команди:
+
+# ```sh
+# npm run debug <path to script> [<path to settings>]
+# ```
+
+# Наприклад:
+
+# ```sh
+# npm run debug ./src/scanany/rss.yml ./test/params/rss.params.yml
+# ```  
+
+# Вхідні дані формуються планувальником завдань на основі оброблення бази даних медіа-джерел.
+
+# Приклад вхідних даних (```./test/params/rss.params.yml```):
+# ```yaml
+#options:
+#  task:
+#    params: ## from section source
+#      url: https://rss.unian.net/site/news_rus.rss
+#    instance: b940bfda-d145-4385-9dc6-c347dcd0fbcf ## scheduler instance   
+#  scraper:
+#    instance: b940bfda-d145-4385-9dc6-c347dcd0fbcf ## scraper instance   
+#    scrapedAt: 2022-08-18T12:04:51.474Z   
+# ```
+
+# ** Опис алгоритму
+
+# Використовується плагін для обробки RSS ```rss-plugin```
 - use: rss-plugin
 
+# отримання всіх повідомлень стрічки RSS за адресою ```url```
 - rss:
     url:
       $ref: options.task.params.url
     into: feed     
 
+# оброблення елементів колекції ```res``` 
 - each:
     in:
       $ref: feed.items
     as: $item
     indexed-by: $index      
-    into: result       
+    into: result   
+
+    # оброблення поточного елемента ```item```    
     apply:
+
       - map:
+          # поміщення ```options``` в ```res```
           - $ref: options
             into: res
+
+          # вибірка із поточного елемента ```$item``` тексту повідомлення (поле ```content```) та
+          # поміщення отриманого значення у ```res.scraper.message.text```
           - $ref: $item.content
             into: res.scraper.message.text
+
+          # вибірка із поточного елемента ```$item``` тексту повідомлення (поле ```content```) та
+          # поміщення отриманого значення у ```res.scraper.message.raw.text```
           - $ref: $item.content
             into: res.scraper.message.raw.text
+
+          # перетворення ```$item.content``` в сигнатуру md5 та 
+          # поміщення результату в ```res.scraper.message.md5```
           - $ref: $item.content
             transform: md5
             into: res.scraper.message.md5
+
+          # вибірка із поточного елемента ```$item``` посилань (поле ```link```) та
+          # поміщення отриманого значення у ```res.scraper.message.links[0]```
           - $ref: $item.link
             into: res.scraper.message.links[0]
+
+          # вибірка із поточного елемента ```$item``` посилань на зображення (поле ```enclosure```) та
+          # поміщення отриманого значення у ```res.scraper.message.links[0]```
           - $ref: $item.enclosure
             into: res.scraper.message.images[0]
+
+          # вибірка із поточного елемента ```$item``` дати публікації в форматі iso (поле ```isoDate```) та
+          # поміщення її у ```res.scraper.scrapedAt```
           - $ref: $item.isoDate
             into: res.scraper.message.publishedAt
+
+          # обчислення поточної дати в форматі iso та поміщення її у ```res.scraper.scrapedAt```
           - transform: date 
             into: res.scraper.scrapedAt   
             
-          
+      # повернення результату оброблення поточного елемента ```item``` колекції ```feed``` в ```res```    
       - return: res
 
-
-
 - return: result    
-     

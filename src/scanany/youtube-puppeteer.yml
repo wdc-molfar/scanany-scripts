@@ -1,0 +1,176 @@
+
+# ** Опис алгоритму
+
+# Використовуються плагіни ```puppeteer-plugin```, ```js-plugin```
+- use: 
+    - puppeteer-plugin
+    - js-plugin
+
+# вибір даних із джерела
+- map:
+    # Визначення посилання на хост медіа-джерела (змінна ```url```)
+    - $ref: options.task.params.url
+      transform:
+        apply:
+          - js: (command, context, value) => `${value}/videos`
+      into: url
+
+# Вибірка та оброблення сторінки каналу з використанням ```puppeteer-plugin``` за адресою ```url```
+- puppeteer:
+    apply:
+        # зупуск headless browser
+        - launch:
+            options:
+                defaultViewport: null
+                # headless: false
+                args:
+                  # - "--no-sandbox" 
+                  # - "--disable-setuid-sandbox"
+                  - "--window-size=800,1800"
+            as: browser
+          
+
+        # створюємо нову сторінку ```page``` headless browser
+        - new-page:
+            $ref: browser
+            as: page
+      
+        # переходимо на сторінку ```page``` за вказаним ```url```
+        - goto:
+            $ref: page 
+            url: 
+                $ref: url
+            options:
+                waitUntil: networkidle2
+
+        # вибірка з ```page``` всіх відео (селектор ```a[id="video-title"]```)       
+        - once:
+            $ref: page
+            select: a[id="video-title"]
+            # результат оброблення буде поміщений у ```list```
+            into: list
+
+        # Оброблення елементів колекції ```list```      
+        - each:        
+            # колекція
+            in:
+              $ref: list 
+            # поточний елемент
+            as: item
+            indexed-by: index
+            # результат оброблення буде поміщений у ```refs```
+            into: messages
+
+            apply:
+
+                # Формування url сторінки поточного відео (змінна ```href```)
+                - map:
+                      $ref: item
+                      # перетворення вибраного елемента в href та поміщення його в змінну ```href```
+                      transform: 
+                        apply:
+                          - attributes: href
+                          - project: href
+                          - js: (command, context, value) => `https://www.youtube.com${value}`
+                      into: href
+
+                # створюємо нову сторінку ```p``` headless browser
+                - new-page:
+                    $ref: browser
+                    as: p
+              
+                # переходимо на сторінку ```p``` за вказаним ```href```
+                - goto:
+                    $ref: p 
+                    url: 
+                        $ref: href
+                    options:
+                        waitUntil: networkidle2
+
+                # вибірка з ```page``` назви відео (селектор ```h1[class="title style-scope ytd-video-primary-info-renderer"]```)       
+                - once:
+                    $ref: p
+                    select: h1[class="title style-scope ytd-video-primary-info-renderer"]
+                    apply:
+                    # перетворення вибраного елемента в text та поміщення його в змінну ```d.title```  
+                    - transform: 
+                       apply:
+                          - text
+                          - js: '(command, context, value) => value.replace(/[\u2000-\uffff]+/g, " ")'
+                      into: d.title
+
+                # вибірка з ```p``` опису відео (селектор ```a[id="video-title"]```)       
+                - once:
+                    $ref: p
+                    select: div[id="description"]
+                    apply:
+                    # перетворення вибраного елемента в text та поміщення його в змінну ```res.scraper.message.text```  
+                    - transform: 
+                       apply:
+                          - text
+                          - js: '(command, context, value) => value.replace(/[\u2000-\uffff]+/g, " ")'
+                      into: d.text
+                    
+                    # перетворення вибраного елемента в html та поміщення його в змінну ```res.scraper.message.raw.html```
+                    - transform: html
+                      into: d.html
+
+                # вибірка з ```p``` дати публікації відео (селектор ```yt-formatted-string[class="style-scope ytd-video-primary-info-renderer"]```)
+                - once:
+                    $ref: p
+                    select: yt-formatted-string[class="style-scope ytd-video-primary-info-renderer"]
+                    apply:
+                    # перетворення вибраного елемента в text та поміщення його в змінну ```res.scraper.message.text```  
+                    - transform: 
+                       apply:
+                          - text
+                          - js: '(command, context, value) => value.replace(/[\u2000-\uffff]+/g, " ")'
+                      into: d.date
+
+                - map:
+                    # поміщення ```options``` в ```res```
+                    - $ref: options
+                      into: res
+
+                    # формування повного опису відео та поміщення його в ```res.scraper.message.text```
+                    - $ref: d
+                      transform:
+                        js: (command, context, value) => `${value.title}\n${value.text}`
+                      into: res.scraper.message.text
+
+                    # поміщення html опису відео  в ```res.scraper.message.raw.html```
+                    - $ref: d.html
+                      into: res.scraper.message.raw.html
+
+                    # перетворення ```res.scraper.message.text``` в сигнатуру md5 та поміщення результату в ```res.scraper.message.md5```
+                    - $ref: res.scraper.message.text
+                      transform: md5
+                      into: res.scraper.message.md5
+
+                    # поміщення дати публікації відео в ```res.scraper.message.publishedAt```
+                    #- $ref: d.date
+                    #  into: res.scraper.message.publishedAt
+
+                    # обчислення поточної дати в форматі iso та поміщення її у ```res.scraper.scrapedAt```
+                    - transform: date
+                      into: res.scraper.scrapedAt 
+
+
+                # закриття сторінки ```p``` headless browser
+                - close:
+                    $ref: p
+
+                - return: res
+
+        # закриття сторінки ```page``` headless browser
+        - close:
+            $ref: page
+
+        # закриття headless browser
+        - close:
+            $ref: browser
+
+
+
+# Повернення результату роботи скрипта
+- return: messages

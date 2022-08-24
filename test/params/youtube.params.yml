@@ -2,7 +2,7 @@
 options:
   task:
     params: ## from section source
-      url: https://www.youtube.com/c/EspresoTv
+      url: https://www.youtube.com/channel/UC-wWyFdk_txbZV8FKEk0V8A
     instance: b940bfda-d145-4385-9dc6-c347dcd0fbcf ## scheduler instance   
   scraper:
     instance: b940bfda-d145-4385-9dc6-c347dcd0fbcf ## scraper instance   

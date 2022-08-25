@@ -103,6 +103,7 @@
                         apply:
                           - attributes: href
                           - project: href
+                          - js: (command, context, value) => `${value.replace("/shorts/","")}`
                           - js: (command, context, value) => `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${value.replace("/watch?v=","")}&key=AIzaSyCsmgzbFS9ZxaayavPDjmNF-QSmMj5JMA4`
                       into: href
 
@@ -154,9 +155,6 @@
                     # обчислення поточної дати в форматі iso та поміщення її у ```res.scraper.scrapedAt```
                     - transform: date 
                       into: res.scraper.scrapedAt
-
-                    - $ref: href
-                      into: res.scraper.href
 
                 - return: res
 

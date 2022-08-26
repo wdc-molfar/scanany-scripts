@@ -23,7 +23,7 @@
 #options:
 #  task:
 #    params: ## from section source
-#      url: https://t.me/s/AK47pfl
+#      url: UC-wWyFdk_txbZV8FKEk0V8A
 #    instance: b940bfda-d145-4385-9dc6-c347dcd0fbcf ## scheduler instance   
 #  scraper:
 #    instance: b940bfda-d145-4385-9dc6-c347dcd0fbcf ## scraper instance   
@@ -32,10 +32,10 @@
 
 # ** Опис алгоритму
 
-# Використовуються плагіни ```axios-plugin``` для HTTP-запитів, ```puppeteer-plugin```, ```js-plugin```
-- use:
+# Використовуються плагіни ```axios-plugin``` для HTTP-запитів, ```cheerio-plugin```, ```js-plugin```
+- use:     
     - axios-plugin
-    - puppeteer-plugin
+    - cheerio-plugin
     - js-plugin
 
 # вибір даних із джерела
@@ -44,127 +44,153 @@
     - $ref: options.task.params.url
       transform:
         apply:
-          - js: (command, context, value) => `${value}/videos`
+          - js: (command, context, value) => `https://www.youtube.com/feeds/videos.xml?channel_id=${value}`
       into: url
 
-# Вибірка та оброблення сторінки каналу з використанням ```puppeteer-plugin``` за адресою ```url```
-- puppeteer:
+# вибірка та оброблення сторінки зі стрічкою публікацій з використанням ```axios-plugin``` за адресою ```url``` 
+- fetch:
+    request:
+      method: GET
+      url: 
+        $ref: url
+    transform:
+      apply:
+        - project: data
+        - html->$
+    into: page
+
+# вибірка із "page" всіх повідомлень (CSS-селектор ```entry```)
+- all:
+    $ref: page
+    select: entry
+    into: res
+
+# оброблення елементів колекції ```res```   
+- each:
+    in:
+      $ref: res
+    as: item
+    indexed-by: index
+    into: messages
+    
+    # оброблення поточного елемента ```item```
     apply:
-        # зупуск headless browser
-        - launch:
-            options:
-                defaultViewport: null
-                # headless: false
-                args:
-                  # - "--no-sandbox" 
-                  # - "--disable-setuid-sandbox"
-                  - "--window-size=800,1800"
-            as: browser
-          
-
-        # створюємо нову сторінку ```page``` headless browser
-        - new-page:
-            $ref: browser
-            as: page
+    
+      - map:
+          # поміщення ```options``` в ```res```
+          - $ref: options
+            into: res
       
-        # переходимо на сторінку ```page``` за вказаним ```url```
-        - goto:
-            $ref: page 
-            url: 
-                $ref: url
-            options:
-                waitUntil: networkidle2
+          # перетворення item -> html -> объект cheerio
+          # результат перетворення буде поміщений у ```msg```
+          - $ref: item
+            transform: 
+              apply:
+                - html
+                - html->$
+            into: msg
 
-        # вибірка з ```page``` всіх відео (селектор ```a[id="video-title"]```)       
-        - all:
-            $ref: page
-            select: a[id="video-title"]
-            # результат оброблення буде поміщений у ```list```
-            into: list
+      # вибірка із "msg" назви відео (селектор ```media\:title```)
+      - once:
+          $ref: msg
+          select: media\:title
+          apply:
+            # перетворення вибраного елемента в text та поміщення його в змінну ```d.title```  
+            - transform: 
+                apply:
+                  - text
+              into: d.title
+            
+      # вибірка із "msg" опису відео (селектор ```media\:description```)
+      - once:
+          $ref: msg
+          select: media\:description
+          apply:
+            # перетворення вибраного елемента в text та поміщення його в змінну ```d.description```  
+            - transform: 
+                apply:
+                  - text
+              into: d.description
+            
+            # перетворення вибраного елемента в html та поміщення його в змінну ```res.scraper.message.raw.html```
+            - transform: html
+              into: d.html
+      
+      # вибірка із  ```msg``` дати публікації в форматі iso (поле ```published```)
+      - once:
+          $ref: msg
+          select: published
+          apply:
+          # перетворення вибраного елемента в text та поміщення його в змінну ```res.scraper.message.publishedAt```  
+          - transform: 
+              apply:
+                - text
+            into: res.scraper.message.publishedAt
 
-        # Оброблення елементів колекції ```list```      
-        - each:        
-            # колекція
-            in:
-              $ref: list 
-            # поточний елемент
-            as: item
-            indexed-by: index
-            # результат оброблення буде поміщений у ```refs```
-            into: messages
+      # вибірка із  ```msg``` поля з посиланням на зображення (поле ```media\:thumbnail```)
+      - once:
+          $ref: msg
+          select: media\:thumbnail
+          apply:
+            # перетворення вибраного елемента в html та поміщення його в змінну ```d.images```  
+            - transform: 
+                apply:
+                  - html
+              into: d.images
 
-            apply:
+      - map:
 
-                # Формування url сторінки поточного відео (змінна ```href```)
-                - map:
-                      $ref: item
-                      # перетворення вибраного елемента в href та поміщення його в змінну ```href```
-                      transform: 
-                        apply:
-                          - attributes: href
-                          - project: href
-                          - js: (command, context, value) => `${value.replace("/shorts/","")}`
-                          - js: (command, context, value) => `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${value.replace("/watch?v=","")}&key=AIzaSyCsmgzbFS9ZxaayavPDjmNF-QSmMj5JMA4`
-                      into: href
+          # обє'днання назви відео (``title```) з описом відео (поле ```description```) із ```d```
+          # та поміщення отриманого значення у ```res.scraper.message.text```
+          - $ref: d
+            transform:
+              js: (command, context, value) => `${value.title}\n${value.description}`
+            into: res.scraper.message.text
 
-                - fetch:
-                    request:
-                      method: GET
-                      url: 
-                        $ref: href
-                    transform:
-                      apply:
-                        - project: data
-                    into: p
+          # вибірка із ```d``` поля ```html``` та
+          # поміщення результату в ```res.scraper.message.raw.html```
+          - $ref: d.html
+            into: res.scraper.message.raw.html
 
-                - map:
-                    # поміщення ```options``` в ```res```
-                    - $ref: options
-                      into: res
+          # перетворення ```res.scraper.message.text``` в сигнатуру md5 та 
+          # поміщення результату в ```res.scraper.message.md5```
+          - $ref: res.scraper.message.text
+            transform: md5
+            into: res.scraper.message.md5
 
-                    # вибірка із ```p.items[0].snippet``` назви відео (``title```) опису відео (поле ```description```) та
-                    # поміщення отриманого значення у ```res.scraper.message.text```
-                    - $ref: p.items[0].snippet
-                      transform:
-                        js: (command, context, value) => `${value.title}\n${value.description}`
-                      into: res.scraper.message.text
+          # перетворення ```d.images``` в посилання на зображення та
+          # поміщення результату в ```res.scraper.message.images[0]```
+          - $ref: d.images
+            transform:
+              - js: (command, context, value) => value.match(/\http(.*)\.jpg\" width=/)[0]
+              - js: (command, context, value) => value.replace("\" width=", "")
+            into: res.scraper.message.images[0]
 
-                    # вибірка із ```p.items[0].snippet``` назви відео (``title```) опису відео (поле ```description```) та
-                    # поміщення отриманого значення у ```res.scraper.message.raw.text```
-                    - $ref: p.items[0].snippet
-                      transform:
-                        js: (command, context, value) => `${value.title}\n${value.description}`
-                      into: res.scraper.message.raw.text
+          # перетворення ```res.scraper.message.raw.html``` в список посиланнь та
+          # поміщення результату в ```res.scraper.message.links```
+          - $ref: res.scraper.message.raw.html
+            transform:
+              - js: >
+                        (command, context, value) => { 
+                          value = value.replace(/(\n)/g, " ")
+                          value = value.match(/\http(.+?)\ /g)
+                          if (value) {
+                            var i = 0
+                            var links = []
+                              value.forEach(function(entry) {
+                                links[i] = entry.replace(" ", "")
+                                i = i + 1
+                                })
+                            }
+                            return links
+                          } 
+            into: res.scraper.message.links
 
-                    # перетворення ```res.scraper.message.text``` в сигнатуру md5 та 
-                    # поміщення результату в ```res.scraper.message.md5```
-                    - $ref: res.scraper.message.text
-                      transform: md5
-                      into: res.scraper.message.md5
+          # обчислення поточної дати в форматі iso та поміщення її у ```res.scraper.scrapedAt```
+          - transform: date 
+            into: res.scraper.scrapedAt
+      
+      # повернення результату оброблення поточного елемента ```item``` колекції ```res``` в ```res```
+      - return: res
 
-                    # вибірка із ```p.items[0].snippet``` посилання на зображення та
-                    # поміщення отриманого значення у ```res.scraper.message.links[0]```
-                    - $ref: p.items[0].snippet.thumbnails.high.url
-                      into: res.scraper.message.images[0]
-
-                    # вибірка із  ```p.items[0].snippet``` дати публікації в форматі iso (поле ```publishedAt```) та
-                    # поміщення її у ```res.scraper.scrapedAt```
-                    - $ref: p.items[0].snippet.publishedAt
-                      into: res.scraper.message.publishedAt
-
-                    # обчислення поточної дати в форматі iso та поміщення її у ```res.scraper.scrapedAt```
-                    - transform: date 
-                      into: res.scraper.scrapedAt
-
-                - return: res
-
-        # закриття сторінки ```page``` headless browser
-        - close:
-            $ref: page
-
-        # закриття headless browser
-        - close:
-            $ref: browser
-
-# Повернення результату роботи скрипта
 - return: messages

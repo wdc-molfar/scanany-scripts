@@ -126,7 +126,23 @@
       - map:
           $ref: $l
           transform:
-            js: (command, context, value) => value.map( a => a.attr("href"))
+            - js: (command, context, value) => value.map( a => a.attr("href"))
+            - js: >
+                        (command, context, value) => { 
+                          if (value) {
+                            var i = 0
+                            var links = []
+                              value.forEach(function(entry) {
+                                if (entry.match("http")) {
+                                  links[i] = entry
+                                  i = i + 1
+                                }
+                                })
+                            }
+                            if (links[0]) {
+                              return links
+                            }
+                          }
           into: res.scraper.message.links      
 
       # обчислення поточної дати в форматі iso та поміщення її у ```res.scraper.scrapedAt```

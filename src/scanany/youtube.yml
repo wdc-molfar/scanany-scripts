@@ -101,6 +101,10 @@
                   - text
               into: d.title
             
+            # перетворення вибраного елемента в html та поміщення його в змінну ```res.scraper.message.raw.html```
+            - transform: html
+              into: d.html.title
+
       # вибірка із "msg" опису відео (селектор ```media\:description```)
       - once:
           $ref: msg
@@ -114,18 +118,18 @@
             
             # перетворення вибраного елемента в html та поміщення його в змінну ```res.scraper.message.raw.html```
             - transform: html
-              into: d.html
+              into: d.html.description
       
       # вибірка із  ```msg``` дати публікації в форматі iso (поле ```published```)
       - once:
           $ref: msg
           select: published
           apply:
-          # перетворення вибраного елемента в text та поміщення його в змінну ```res.scraper.message.publishedAt```  
+          # перетворення вибраного елемента в text та поміщення його в змінну ```d.published```  
           - transform: 
               apply:
                 - text
-            into: res.scraper.message.publishedAt
+            into: d.published
 
       # вибірка із  ```msg``` поля з посиланням на зображення (поле ```media\:thumbnail```)
       - once:
@@ -144,12 +148,20 @@
           # та поміщення отриманого значення у ```res.scraper.message.text```
           - $ref: d
             transform:
-              js: (command, context, value) => `${value.title}\n${value.description}`
+              - js: (command, context, value) => `${value.title}\n${value.description}`
+              - js: (command, context, value) => value.replace(/(\n)/g, " ")
             into: res.scraper.message.text
 
-          # вибірка із ```d``` поля ```html``` та
+          # вибірка із ```d``` поля ```published``` та
+          # поміщення результату в ```res.scraper.message.publishedAt```
+          - $ref: d.published 
+            into: res.scraper.message.publishedAt
+
+          # обє'днання html поля ```html.title``` з ```html.description``` із ```d```
           # поміщення результату в ```res.scraper.message.raw.html```
-          - $ref: d.html
+          - $ref: d
+            transform:
+              js: (command, context, value) => `${value.html.title}\n${value.html.description}`
             into: res.scraper.message.raw.html
 
           # перетворення ```res.scraper.message.text``` в сигнатуру md5 та 

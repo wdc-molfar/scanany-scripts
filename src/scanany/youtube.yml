@@ -101,7 +101,7 @@
                   - text
               into: d.title
             
-            # перетворення вибраного елемента в html та поміщення його в змінну ```res.scraper.message.raw.html```
+            # перетворення вибраного елемента в html та поміщення його в змінну ```d.html.title```
             - transform: html
               into: d.html.title
 
@@ -116,7 +116,7 @@
                   - text
               into: d.description
             
-            # перетворення вибраного елемента в html та поміщення його в змінну ```res.scraper.message.raw.html```
+            # перетворення вибраного елемента в html та поміщення його в змінну ```d.html.description```
             - transform: html
               into: d.html.description
       

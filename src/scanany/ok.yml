@@ -1,4 +1,4 @@
-# Скрипт telegram.yml призначений для вибірки текстів повідомлень з ресурсу https://ok.ru за допомогою
+# Скрипт ok.yml призначений для вибірки текстів повідомлень з ресурсу https://ok.ru за допомогою
 # скрапера [scanany](https://github.com/boldak/scanany)
 
 # Входить до складу проекту [@molfar](https://github.com/wdc-molfar)

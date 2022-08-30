@@ -132,20 +132,34 @@
           - transform: date
             into: res.scraper.message.publishedAt
             
-      # вибірка із "page" посилання на зображення (селектор ```img[class="media-photos_img"]```)      
+      # вибірка із "page" всіх посилань на зображення (селектор ```img[class="media-photos_img"]```)      
       # поміщення результату в ```res.scraper.message.images```
-      - once:
+      - all:
           $ref: page
           select: img[class="media-photos_img"]
-          apply:
-          - transform:
-              apply:
-                - attributes: src
-                - project: src
-                - js: (command, context, value) => `https:${value}`
-            into: res.scraper.message.images
+          into: images
+          
+      # вибірка зі списку ```images``` всіх посилань та поміщення списку посилань у змінну ```res.scraper.message.links```
+      - map:
+          - $ref: images
+            transform:
+              - js: (command, context, value) => value.map( a => a.attr("src"))
+              - js: >
+                        (command, context, value) => { 
+                          if (value) {
+                            var i = 0
+                            var links = []
+                              value.forEach(function(entry) {
+                                  links[i] = "https:"+entry
+                                  i = i + 1
+                                })
+                            }
+                            if (links[0]) {
+                              return links
+                            }
+                          }
+            into: res.scraper.message.images 
             
-      - map:        
           # перетворення ```res.scraper.message.raw.html``` в список посиланнь та
           # поміщення результату в ```res.scraper.message.links```
           - $ref: res.scraper.message.text

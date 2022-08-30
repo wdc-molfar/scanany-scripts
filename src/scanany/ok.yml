@@ -42,8 +42,6 @@
 - map:
     # Формування url зі списком публікацій на основі вихідних даних (змінна ```url```)
     - $ref: options.task.params.url
-      transform:
-        js: (command, context, value) => `https://infostream.fun/cgi-bin/001.pl?link=${value}`
       into: url
 
 # вибір даних із джерела
@@ -59,16 +57,16 @@
         - html->$
     into: page
 
-# вибірка із "page" всіх повідомлень (CSS-селектор ```div[class="feed-list __compact"]```)
+# вибірка із "page" всіх повідомлень, що містять текст (CSS-селектор ```a[class="media_more_a"]```)
 - all:
     $ref: page
-    select: div[class="feed-w"]
-    into: res
+    select: a[class="media_more_a"]
+    into: list
 
-# оброблення елементів колекції ```res```   
+# оброблення елементів колекції ```list```   
 - each:
     in:
-      $ref: res
+      $ref: list
     as: item
     indexed-by: index
     into: messages
@@ -77,58 +75,100 @@
     apply:
     
       - map:
+          $ref: item
+          # перетворення вибраного елемента в href, формування повної адреси 
+          # та поміщення її в змінну ```href```
+          transform: 
+            apply:
+              - attributes: href
+              - project: href
+              - js: (command, context, value) => `https://ok.ru${value}`
+          into: href
+      
+      # оброблення сторінки окремого повідомлення з використанням ```axios-plugin``` адресою ```href``` 
+      # та поміщення результату в змінну ```page```
+      - fetch:
+            request:
+              method: GET
+              url: 
+                $ref: href
+            transform:
+              apply:
+                - project: data
+                - html->$
+            into: page  
+        
+      - map:
           # поміщення ```options``` в ```res```
           - $ref: options
             into: res
 
-          # перетворення item -> html -> объект cheerio
-          # результат перетворення буде поміщений у ```msg```
-          - $ref: item
-            transform: 
-              apply:
-                - html
-                - html->$
-            into: msg
-      
-      # вибірка із "msg" тексту повідомлення (CSS-селектор ```iv[class="media-text_cnt"]```)
+      # вибірка із "page" тексту повідомлення (селектор ```div[class="media-text_cnt_tx emoji-tx textWrap"]```)      
       - once:
-          $ref: msg
-          select: div[class="media-text_cnt"]
+          $ref: page
+          select: div[class="media-text_cnt_tx emoji-tx textWrap"]
           apply:
-            # перетворення вибраного елемента в text та поміщення його в змінну ```res.scraper.message.text```  
-            - transform: 
-                apply:
-                  - text
-                  - js: '(command, context, value) => value.replace(/[\u2000-\uffff]+/g, " ")'
-                  - js: (command, context, value) => value.replace(/(\n)/g, " ")
-              into: res.scraper.message.text
-            
-            # перетворення вибраного елемента в html та поміщення його в змінну ```res.scraper.message.raw.html```
-            - transform: 
-                apply:
-                  - html
-                  - js: >
-                          (command, context, value) => { 
-                            if (value) {
-                              return value
-                            }
-                          }
-              into: res.scraper.message.raw.html
+          # перетворення вибраного елемента в text та поміщення його в змінну ```res.scraper.message.text```
+          - transform:
+              apply:
+                - text
+                - js: '(command, context, value) => value.replace(/[\u2000-\uffff]+/g, " ")'
+                - js: (command, context, value) => `${value.replace(/(\n)/g, " ")} `
+            into: res.scraper.message.text
+          
+          # перетворення вибраного елемента в html та поміщення його в змінну ```res.scraper.raw.html```  
+          - transform: html
+            into: res.scraper.message.raw.html
       
-      # перетворення ```res.scraper.message.text``` в сигнатуру md5 та поміщення результату в ```res.scraper.message.md5```
       - map:
-          $ref: res.scraper.message.text
-          transform: md5
-          into: res.scraper.message.md5 
-      
-      # обчислення поточної дати в форматі iso та поміщення її у ```res.scraper.scrapedAt```
-      - transform: date
-        into: res.scraper.message.publishedAt
+          # перетворення ```res.scraper.message.text``` в сигнатуру md5 та 
+          # поміщення результату в ```res.scraper.message.md5```
+          - $ref: res.scraper.message.text
+            transform: md5
+            into: res.scraper.message.md5
+            
+          # формування дати публікації як дати сканування в форматі iso та
+          # поміщення її у ```res.scraper.scrapedAt```
+          - transform: date
+            into: res.scraper.message.publishedAt
+            
+      # вибірка із "page" посилання на зображення (селектор ```img[class="media-photos_img"]```)      
+      # поміщення результату в ```res.scraper.message.images```
+      - once:
+          $ref: page
+          select: img[class="media-photos_img"]
+          apply:
+          - transform:
+              apply:
+                - attributes: src
+                - project: src
+                - js: (command, context, value) => `https:${value}`
+            into: res.scraper.message.images
+            
+      - map:        
+          # перетворення ```res.scraper.message.raw.html``` в список посиланнь та
+          # поміщення результату в ```res.scraper.message.links```
+          - $ref: res.scraper.message.text
+            transform:
+              - js: >
+                        (command, context, value) => { 
+                          value = value.match(/\http(.+?)\ /g)
+                          if (value) {
+                            var i = 0
+                            var links = []
+                              value.forEach(function(entry) {
+                                links[i] = entry.replace(" ", "")
+                                i = i + 1
+                                })
+                            }
+                            return links
+                          } 
+            into: res.scraper.message.links
 
-      # обчислення поточної дати в форматі iso та поміщення її у ```res.scraper.scrapedAt```
-      - transform: date
-        into: res.scraper.scrapedAt
-
+          # обчислення поточної дати в форматі iso та поміщення її у ```res.scraper.scrapedAt```
+          - transform: date 
+            into: res.scraper.scrapedAt
+        
       # повернення результату оброблення поточного елемента ```item``` колекції ```res``` в ```res```
       - return: res
 

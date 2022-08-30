@@ -133,13 +133,14 @@
             into: res.scraper.message.publishedAt
             
       # вибірка із "page" всіх посилань на зображення (селектор ```img[class="media-photos_img"]```)      
-      # поміщення результату в ```res.scraper.message.images```
+      # поміщення результату в ```images```
       - all:
           $ref: page
           select: img[class="media-photos_img"]
           into: images
           
-      # вибірка зі списку ```images``` всіх посилань та поміщення списку посилань у змінну ```res.scraper.message.links```
+      # вибірка зі списку ```images``` всіх посилань та їх обробка 
+      # поміщення списку сформованих посилань у змінну ```res.scraper.message.links```
       - map:
           - $ref: images
             transform:

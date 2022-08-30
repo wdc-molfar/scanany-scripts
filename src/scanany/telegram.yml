@@ -116,14 +116,14 @@
                   - project: datetime
               into: res.scraper.message.publishedAt
       
-      # вибірка із "msg" всіх посилань на зображення (селектор ```img[class="media-photos_img"]```)      
+      # вибірка із "msg" всіх посилань на зображення (селектор ```a.tgme_widget_message_photo_wrap```)      
       # поміщення результату в ```images```
       - all:
           $ref: msg
           select: a.tgme_widget_message_photo_wrap
           into: images
       
-      # вибірка зі списку ```images``` всіх посилань та їх обробка 
+      # вибірка зі списку ```images``` всіх посилань на зображення та їх обробка 
       # поміщення списку сформованих посилань у змінну ```res.scraper.message.links```    
       - map:
           - $ref: images

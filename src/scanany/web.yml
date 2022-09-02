@@ -193,6 +193,66 @@
           - $ref: d.published 
             into: res.scraper.message.publishedAt
 
+      # вибірка із "page" всіх посилань на зображення (селектор ```img[class="media-photos_img"]```)      
+      # поміщення результату в ```images```
+      - all:
+          $ref: msg
+          select: picture img
+          into: images
+
+      # вибірка зі списку ```images``` всіх посилань та їх обробка 
+      # поміщення списку сформованих посилань у змінну ```res.scraper.message.links```
+      - map:
+          - $ref: images
+            transform:
+              - js: (command, context, value) => value.map( a => a.attr("src"))
+              - js: >
+                        (command, context, value) => { 
+                          if (value) {
+                            var i = 0
+                            var links = []
+                              value.forEach(function(entry) {
+                                if (entry){
+                                  links[i] = entry
+                                  i = i + 1
+                                } 
+                                })
+                            }
+                            if (links[0]) {
+                              return links
+                            }
+                          }
+            into: res.scraper.message.images
+
+      # вибірка із "msg" всіх елементів, що містять посилання (CSS-селектор ```div.c-article__body a```)
+      - all:
+          $ref: msg
+          select: div.c-article__body a
+          into: $l
+
+      # вибірка зі списку $l всіх посилань та поміщення списку посилань у змінну ```res.scraper.message.links```
+      - map:
+          $ref: $l
+          transform:
+            - js: (command, context, value) => value.map( a => a.attr("href"))
+            - js: >
+                        (command, context, value) => { 
+                          if (value) {
+                            var i = 0
+                            var links = []
+                              value.forEach(function(entry) {
+                                if (entry.slice(0,4) === "http") {
+                                  links[i] = entry
+                                  i = i + 1
+                                }
+                                })
+                            }
+                            if (links[0]) {
+                              return links
+                            }
+                          }
+          into: res.scraper.message.links
+          
       # повернення результату оброблення поточного елемента ```item``` колекції ```res``` в ```res```
       - return: res
 

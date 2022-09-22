@@ -33,10 +33,10 @@
 # ** Опис алгоритму
 
 # Використовуються плагіни ```axios-plugin``` для HTTP-запитів, ```cheerio-plugin```, ```js-plugin```
-- use:     
-    - axios-plugin
-    - cheerio-plugin
-    - js-plugin
+- use:
+  - axios-plugin
+  - cheerio-plugin
+  - js-plugin
 
 # Попереднє оброблення вхідних даних
 - map:
@@ -193,7 +193,7 @@
           - $ref: d.published 
             into: res.scraper.message.publishedAt
 
-      # вибірка із "page" всіх посилань на зображення (селектор ```img[class="media-photos_img"]```)      
+      # вибірка із "page" всіх посилань на зображення (селектор ```picture img```)      
       # поміщення результату в ```images```
       - all:
           $ref: msg

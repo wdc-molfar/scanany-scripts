@@ -33,15 +33,15 @@
 # ** Опис алгоритму
 
 # Використовуються плагіни ```axios-plugin``` для HTTP-запитів, ```cheerio-plugin```, ```js-plugin```
-- use:
-  - axios-plugin
-  - cheerio-plugin
-  - js-plugin
+- use:     
+    - axios-plugin
+    - cheerio-plugin
+    - js-plugin
 
 # Попереднє оброблення вхідних даних
 - map:
     # Формування url зі списком публікацій на основі вихідних даних (змінна ```url```)
-    - $ref: options.task.params.url
+    - $ref: task.options.url
       into: url
 
 # вибір даних із джерела

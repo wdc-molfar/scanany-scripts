@@ -40,12 +40,12 @@
 
 # Попереднє оброблення вхідних даних
 - map:
-    # Формування url зі списком публікацій на основі вихідних даних (змінна ```url```)
+    # Формування url джерела на основі вхідних даних (змінна ```url```)
     - $ref: task.options.url
       into: url
 
-# вибір даних із джерела
-# вибірка та оброблення сторінки зі стрічкою публікацій з використанням ```axios-plugin``` за адресою ```url``` 
+# вибірка даних із джерела 
+# вибірка та оброблення сторінки зі списком публікацій з використанням ```axios-plugin``` за адресою ```url``` 
 - fetch:
     request:
       method: GET
@@ -57,14 +57,15 @@
         - html->$
     into: page
 
-# вибірка із "page" всіх повідомлень, що містять текст (CSS-селектор ```a[class="media_more_a"]```)
+# вибірка із "page" всіх публікацій (CSS-селектор ```task.options.feed```)
+# формування колекції ```list```
 - all:
     $ref: page
-    select: div[class="l-sidebar__main c-feed-log--y c-feed-log--y-start"] a
-    # перетворення вибраного елемента в href та поміщення його в змінну ```href```
+    select: 
+      $ref: task.options.feed
     into: list
 
-# оброблення елементів колекції ```res```   
+# оброблення елементів колекції ```list```   
 - each:
     in:
       $ref: list
@@ -99,14 +100,15 @@
           transform:
             apply:
               - project: data
-              # Перетворення в об'єкт cheerio та поміщення його в змінну ```p```
+              # Перетворення в об'єкт cheerio та поміщення його в змінну ```msg```
               - html->$    
           into: msg
 
-      # вибірка із "msg" заголовку повідомлення (селектор ```р1```)      
+      # вибірка із "msg" заголовку повідомлення (селектор ```task.options.title```)      
       - once:
           $ref: msg
-          select: h1
+          select: 
+            $ref: task.options.title
           apply:
           # перетворення вибраного елемента в text та поміщення його в змінну ```d.title```
           - transform:
@@ -120,27 +122,11 @@
           - transform: html
             into: d.html.title
 
-      # вибірка із "msg" короткого опису повідомлення (селектор ```р1```)      
+      # вибірка із "msg" тексту повідомлення (селектор ```task.options.content```)      
       - once:
           $ref: msg
-          select: h1
-          apply:
-          # перетворення вибраного елемента в text та поміщення його в змінну ```d.description```
-          - transform:
-              apply:
-                - text
-                - js: '(command, context, value) => value.replace(/[\u2000-\uffff]+/g, " ")'
-                - js: (command, context, value) => `${value.replace(/(\n)/g, " ")} `
-            into: d.description
-          
-          # перетворення вибраного елемента в html та поміщення його в змінну ```d.html.description```  
-          - transform: html
-            into: d.html.description
-
-      # вибірка із "msg" тексту повідомлення (селектор ```div[class="c-article__body"]```)      
-      - once:
-          $ref: msg
-          select: div[class="c-article__body"]
+          select: 
+            $ref: task.options.content
           apply:
           # перетворення вибраного елемента в text та поміщення його в змінну ```d.content```
           - transform:
@@ -154,10 +140,11 @@
           - transform: html
             into: d.html.content
       
-       # вибірка із  ```msg``` дати публікації в форматі iso (поле ```published```)
+       # вибірка із  ```msg``` дати публікації в форматі iso (селектор ```task.options.published```)
       - once:
           $ref: msg
-          select: time
+          select: 
+            $ref: task.options.published
           apply:
           # перетворення вибраного елемента в text та поміщення його в змінну ```d.published```  
           - transform: 
@@ -167,19 +154,19 @@
             into: d.published
       
       - map:
-          # обє'днання назви повідомлення (``title```) з описом (```description```) та контентом із ```d```
-          # та поміщення отриманого значення у ```res.scraper.message.text```
+          # обє'днання назви повідомлення (``title```) з контентом із ```d```
+          # поміщення отриманого значення у ```res.scraper.message.text```
           - $ref: d
             transform:
-              - js: (command, context, value) => `${value.title}. ${value.description}. ${value.content}`
+              - js: (command, context, value) => `${value.title}. ${value.content}`
               - js: (command, context, value) => value.replace(/(\t)/g, " ")
             into: res.scraper.message.text  
 
-          # обє'днання html поля ```html.title``` з ```html.description``` та ```html.content`` із ```d```
+          # обє'днання html поля ```html.title``` та ```html.content`` із ```d```
           # поміщення результату в ```res.scraper.message.raw.html```
           - $ref: d
             transform:
-              js: (command, context, value) => `${value.html.title}.\n${value.html.description}.\n${value.html.content}`
+              js: (command, context, value) => `${value.html.title}.\n${value.html.content}`
             into: res.scraper.message.raw.html
 
           # перетворення ```res.scraper.message.text``` в сигнатуру md5 та 
@@ -193,11 +180,12 @@
           - $ref: d.published 
             into: res.scraper.message.publishedAt
 
-      # вибірка із "page" всіх посилань на зображення (селектор ```picture img```)      
+      # вибірка із "page" всіх посилань на зображення (селектор ```task.options.images```)      
       # поміщення результату в ```images```
       - all:
           $ref: msg
-          select: picture img
+          select: 
+            $ref: task.options.images
           into: images
 
       # вибірка зі списку ```images``` всіх посилань та їх обробка 
@@ -227,7 +215,8 @@
       # вибірка із "msg" всіх елементів, що містять посилання (CSS-селектор ```div.c-article__body a```)
       - all:
           $ref: msg
-          select: div.c-article__body a
+          select: 
+            $ref: task.options.links
           into: $l
 
       # вибірка зі списку $l всіх посилань та поміщення списку посилань у змінну ```res.scraper.message.links```

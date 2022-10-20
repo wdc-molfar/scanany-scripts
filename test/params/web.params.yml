@@ -1,4 +1,9 @@
 task:
   options:  
     url: https://tsn.ua/
-    
+    feed: 'div[class="l-sidebar__main c-feed-log--y c-feed-log--y-start"] a'
+    title: h1
+    content: 'div[class="c-article__body"]'
+    published: time
+    images: 'picture img'
+    links: 'div.c-article__body a'

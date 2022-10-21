@@ -1,4 +1,4 @@
-# Скрипт web.yml призначений для вибірки текстів повідомлень з web-ресурсів за допомогою
+# Скрипт web.yml призначений для вибірки текстів публікацій з web-ресурсів за допомогою
 # скрапера [scanany](https://github.com/boldak/scanany)
 
 # Входить до складу проекту [@molfar](https://github.com/wdc-molfar)
@@ -20,14 +20,15 @@
 
 # Приклад вхідних даних (```./test/params/web.params.yml```):
 # ```yaml
-#options:
-#  task:
-#    params: ## from section source
-#      url: https://tsn.ua/
-#    instance: b940bfda-d145-4385-9dc6-c347dcd0fbcf ## scheduler instance   
-#  scraper:
-#    instance: b940bfda-d145-4385-9dc6-c347dcd0fbcf ## scraper instance   
-#    scrapedAt: 2022-08-18T12:04:51.474Z     
+#task:
+#  options:  
+#    url: https://tsn.ua
+#    feed: 'div[class="l-sidebar__main c-feed-log--y c-feed-log--y-start"] a'
+#    title: h1
+#    content: 'div[class="c-article__body"]'
+#    published: time
+#    images: 'picture img'
+#    links: 'div.c-article__body a'   
 # ```
 
 # ** Опис алгоритму
@@ -38,14 +39,13 @@
     - cheerio-plugin
     - js-plugin
 
-# Попереднє оброблення вхідних даних
+# Формування url джерела на основі вхідних даних та поміщення його з змінну ```url```
 - map:
-    # Формування url джерела на основі вхідних даних (змінна ```url```)
     - $ref: task.options.url
       into: url
 
-# вибірка даних із джерела 
-# вибірка та оброблення сторінки зі списком публікацій з використанням ```axios-plugin``` за адресою ```url``` 
+# вибірка даних із джерела за адресою ```url```
+# оброблення сторінки зі списком публікацій з використанням ```axios-plugin``` 
 - fetch:
     request:
       method: GET
@@ -57,39 +57,62 @@
         - html->$
     into: page
 
-# вибірка із "page" всіх публікацій (CSS-селектор ```task.options.feed```)
-# формування колекції ```list```
+# вибірка із "page" всіх елементів публікацій (CSS-селектор ```task.options.feed```)
 - all:
     $ref: page
     select: 
       $ref: task.options.feed
-    into: list
+    into: feed
 
-# оброблення елементів колекції ```list```   
+# формування колекції посилань на публікації та поміщення її в змінну ```hrefs```
+- map:
+    $ref: feed
+    transform:
+      - js: (command, context, value) => value.map( a => a.attr("href"))
+      - js: >
+                  (command, context, value) => {
+                    if (value) {
+                      var i = 0
+                      var list = []
+                      value.forEach(function(entry) {
+                        if (entry.slice(0,4) === "http") {
+                          if (entry.startsWith(context.url)) {
+                            list[i] = entry
+                            i = i + 1
+                          }
+                        }
+                        else {
+                          list[i] = context.url + entry
+                          i = i + 1
+                        }
+
+                      })
+                    }
+                    if (list[0]) {
+                      return list
+                    }
+                  }
+    into: hrefs
+
+# оброблення елементів колекції ```hrefs```   
 - each:
     in:
-      $ref: list
-    as: item
+      $ref: hrefs
+    as: href
     indexed-by: index
     into: messages
-    
+
     # оброблення поточного елемента ```item```
     apply:
     
+      - log:
+        - $const: ">>> "
+        - $ref: href
+
       - map:
           # поміщення ```options``` в ```res```
           - $ref: options
             into: res
-      
-          # перетворення item -> html -> объект cheerio
-          # результат перетворення буде поміщений у ```msg```
-          - $ref: item
-            # перетворення вибраного елемента в href та поміщення його в змінну ```href```
-            transform: 
-              apply:
-                - attributes: href
-                - project: href
-            into: href
 
       # вибірка та оброблення сторінки опису поточного повідомлення з використанням ```axios-plugin``` за адресою ```href``` 
       - fetch:

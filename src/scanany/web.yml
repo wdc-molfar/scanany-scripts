@@ -104,10 +104,6 @@
 
     # оброблення поточного елемента ```item```
     apply:
-    
-      - log:
-        - $const: ">>> "
-        - $ref: href
 
       - map:
           # поміщення ```options``` в ```res```
@@ -163,17 +159,27 @@
           - transform: html
             into: d.html.content
       
-       # вибірка із  ```msg``` дати публікації в форматі iso (селектор ```task.options.published```)
+      # вибірка із  ```msg``` дати публікації в форматі iso (селектор ```task.options.published```)
       - once:
           $ref: msg
           select: 
             $ref: task.options.published
           apply:
-          # перетворення вибраного елемента в text та поміщення його в змінну ```d.published```  
+          # перетворення вибраного елемента в datetime 
+          # поміщення обробленого datetime в змінну ```d.published```  
           - transform: 
               apply:
                 - attributes: datetime
                 - project: datetime
+                - js: >
+                        (command, context, value) => { 
+                          if (value) {
+                            return value
+                          }
+                          else {
+                            return moment().format('YYYY-MM-DDTHH:mm:ss')
+                          }
+                        }
             into: d.published
       
       - map:
@@ -224,10 +230,12 @@
                             var links = []
                               value.forEach(function(entry) {
                                 if (entry){
-                                  links[i] = entry
-                                  i = i + 1
+                                  if (entry.slice(0,4) === "http") {
+                                    links[i] = entry
+                                    i = i + 1
+                                  }
                                 } 
-                                })
+                              })
                             }
                             if (links[0]) {
                               return links
@@ -253,11 +261,13 @@
                             var i = 0
                             var links = []
                               value.forEach(function(entry) {
-                                if (entry.slice(0,4) === "http") {
-                                  links[i] = entry
-                                  i = i + 1
+                                if (entry){
+                                  if (entry.slice(0,4) === "http") {
+                                    links[i] = entry
+                                    i = i + 1
+                                  }
                                 }
-                                })
+                              })
                             }
                             if (links[0]) {
                               return links

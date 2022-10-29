@@ -110,6 +110,10 @@
           - $ref: options
             into: res
 
+          # розміщення прямого посилання на повідомлення в ```res.scraper.message.href```
+          - $ref: href
+            into: res.scraper.message.href
+
       # вибірка та оброблення сторінки опису поточного повідомлення з використанням ```axios-plugin``` за адресою ```href``` 
       - fetch:
           request:
@@ -152,7 +156,8 @@
               apply:
                 - text
                 - js: '(command, context, value) => value.replace(/[\u2000-\uffff]+/g, " ")'
-                - js: (command, context, value) => `${value.replace(/(\n)/g, " ")} `
+                - js: (command, context, value) => `${value.replace(/(\n)/g, " ")}`
+                - js: '(command, context, value) => value.replace("·", "")'
             into: d.content
           
           # перетворення вибраного елемента в html та поміщення його в змінну ```d.html.content```  

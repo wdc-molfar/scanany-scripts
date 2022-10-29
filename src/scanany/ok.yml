@@ -20,14 +20,9 @@
 
 # Приклад вхідних даних (```./test/params/ok.params.yml```):
 # ```yaml
-#options:
-#  task:
-#    params: ## from section source
-#      url: https://ok.ru/gorodgomel
-#    instance: b940bfda-d145-4385-9dc6-c347dcd0fbcf ## scheduler instance   
-#  scraper:
-#    instance: b940bfda-d145-4385-9dc6-c347dcd0fbcf ## scraper instance   
-#    scrapedAt: 2022-08-18T12:04:51.474Z     
+# task:
+#    options:
+#      url: https://ok.ru/gorodgomel   
 # ```
 
 # ** Опис алгоритму
@@ -41,7 +36,7 @@
 # Попереднє оброблення вхідних даних
 - map:
     # Формування url зі списком публікацій на основі вихідних даних (змінна ```url```)
-    - $ref: options.task.params.url
+    - $ref: task.options.url
       into: url
 
 # вибір даних із джерела
@@ -102,6 +97,10 @@
           # поміщення ```options``` в ```res```
           - $ref: options
             into: res
+
+          # розміщення прямого посилання на повідомлення в ```res.scraper.message.href```
+          - $ref: href
+            into: res.scraper.message.href
 
       # вибірка із "page" тексту повідомлення (селектор ```div[class="media-text_cnt_tx emoji-tx textWrap"]```)      
       - once:

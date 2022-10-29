@@ -20,14 +20,9 @@
 
 # Приклад вхідних даних (```./test/params/telegram.params.yml```):
 # ```yaml
-#options:
-#  task:
-#    params: ## from section source
-#      url: https://t.me/s/AK47pfl
-#    instance: b940bfda-d145-4385-9dc6-c347dcd0fbcf ## scheduler instance   
-#  scraper:
-#    instance: b940bfda-d145-4385-9dc6-c347dcd0fbcf ## scraper instance   
-#    scrapedAt: 2022-08-18T12:04:51.474Z     
+#task:
+#    options:
+#        account: AK47pfl     
 # ```
 
 # ** Опис алгоритму
@@ -40,11 +35,17 @@
 
 # вибір даних із джерела
 # вибірка та оброблення сторінки зі стрічкою публікацій з використанням ```axios-plugin``` за адресою ```url``` 
+- map:
+    - $ref: task.options.account
+      into: account_url
+      transform:
+        js: '(command, context, value) => "https://t.me/s/"+value'
+            
 - fetch:
     request:
       method: GET
       url: 
-        $ref: options.task.params.url
+        $ref: account_url
     transform:
       apply:
         - project: data
@@ -176,8 +177,9 @@
           into: res.scraper.message.links      
 
       # обчислення поточної дати в форматі iso та поміщення її у ```res.scraper.scrapedAt```
-      - transform: date
-        into: res.scraper.scrapedAt
+      - map:
+        - transform: date
+          into: res.scraper.scrapedAt
 
       # повернення результату оброблення поточного елемента ```item``` колекції ```res``` в ```res```
       - return: res

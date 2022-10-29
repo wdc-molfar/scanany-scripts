@@ -55,7 +55,7 @@
 # вибірка із "page" всіх повідомлень (CSS-селектор ```div.tgme_widget_message_bubble```)
 - all:
     $ref: page
-    select: div.tgme_widget_message_bubble
+    select: div.tgme_widget_message_wrap
     into: res
 
 # оброблення елементів колекції ```res```   
@@ -83,6 +83,19 @@
                 - html->$
             into: msg
       
+      # вибірка із "msg" прямого посилання на повідомлення (CSS-селектор ```div.tgme_widget_message```)
+      - once:
+          $ref: msg
+          select: div.tgme_widget_message
+          apply:
+            - transform: 
+                # вибірка із елемента ```div.tgme_widget_message``` атрибута "data-post" та розміщення його в ```res.scraper.message.href```
+                apply:
+                  - attributes: data-post
+                  - project: data-post
+                  - js: '(command, context, value) => "https://t.me/s/"+value'
+              into: res.scraper.message.href
+
       # вибірка із "msg" тексту повідомлення (CSS-селектор ```div.tgme_widget_message_text```)
       - once:
           $ref: msg

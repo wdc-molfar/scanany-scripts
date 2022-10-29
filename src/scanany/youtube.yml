@@ -41,7 +41,7 @@
 # вибір даних із джерела
 - map:
     # Визначення посилання на хост медіа-джерела (змінна ```url```)
-    - $ref: options.task.params.url
+    - $ref: task.options.channel
       transform:
         apply:
           - js: (command, context, value) => `https://www.youtube.com/feeds/videos.xml?channel_id=${value}`
@@ -89,6 +89,18 @@
                 - html
                 - html->$
             into: msg
+
+      # вибірка із "msg" прямого посилання відео (селектор ```link```)
+      - once:
+          $ref: msg
+          select: link
+          apply:
+            # вибірка атрибута "href" та поміщення його в змінну ```res.scraper.message.href```  
+            - transform: 
+                apply:
+                  - attributes: href
+                  - project: href
+              into: res.scraper.message.href
 
       # вибірка із "msg" назви відео (селектор ```media\:title```)
       - once:

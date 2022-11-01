@@ -38,7 +38,7 @@
 # отримання всіх повідомлень стрічки RSS за адресою ```url```
 - rss:
     url:
-      $ref: options.task.params.url
+      $ref: task.options.url
     into: feed     
 
 # оброблення елементів колекції ```res``` 
@@ -56,7 +56,11 @@
           # поміщення ```options``` в ```res```
           - $ref: options
             into: res
-
+            
+          # вибірка із поточного елемента ```$item``` посилань (поле ```link```) та
+          # поміщення отриманого значення у ```res.scraper.message.href```
+          - $ref: $item.link
+            into: res.scraper.message.href
           # вибірка із поточного елемента ```$item``` тексту повідомлення (поле ```content```) та
           # поміщення отриманого значення у ```res.scraper.message.text```
           - $ref: $item.content
@@ -73,14 +77,9 @@
             transform: md5
             into: res.scraper.message.md5
 
-          # вибірка із поточного елемента ```$item``` посилань (поле ```link```) та
-          # поміщення отриманого значення у ```res.scraper.message.links[0]```
-          - $ref: $item.link
-            into: res.scraper.message.links[0]
-
           # вибірка із поточного елемента ```$item``` посилань на зображення (поле ```enclosure```) та
           # поміщення отриманого значення у ```res.scraper.message.links[0]```
-          - $ref: $item.enclosure
+          - $ref: $item.enclosure.url
             into: res.scraper.message.images[0]
 
           # вибірка із поточного елемента ```$item``` дати публікації в форматі iso (поле ```isoDate```) та

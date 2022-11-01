@@ -32,8 +32,10 @@
 
 # ** Опис алгоритму
 
-# Використовується плагін для обробки RSS ```rss-plugin```
-- use: rss-plugin
+# Використовується плагін для обробки RSS ```rss-plugin``` та ```js-plugin```
+- use: 
+  - rss-plugin
+  - js-plugin
 
 # отримання всіх повідомлень стрічки RSS за адресою ```url```
 - rss:
@@ -64,6 +66,8 @@
           # вибірка із поточного елемента ```$item``` тексту повідомлення (поле ```content```) та
           # поміщення отриманого значення у ```res.scraper.message.text```
           - $ref: $item.content
+            transform:
+                - js: (command, context, value) => `${value.replace(/(\n)/g, "")}`
             into: res.scraper.message.text
 
           # вибірка із поточного елемента ```$item``` тексту повідомлення (поле ```content```) та
@@ -80,7 +84,16 @@
           # вибірка із поточного елемента ```$item``` посилань на зображення (поле ```enclosure```) та
           # поміщення отриманого значення у ```res.scraper.message.links[0]```
           - $ref: $item.enclosure.url
-            into: res.scraper.message.images[0]
+            transform:
+              - js: >
+                        (command, context, value) => { 
+                            if (value) {
+                              var links = []
+                              links[0] = value
+                              return links
+                            }
+                          }          
+            into: res.scraper.message.images
 
           # вибірка із поточного елемента ```$item``` дати публікації в форматі iso (поле ```isoDate```) та
           # поміщення її у ```res.scraper.scrapedAt```

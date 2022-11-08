@@ -42,10 +42,11 @@
 # вибірка та оброблення сторінки зі стрічкою публікацій з використанням ```axios-plugin``` за адресою ```url``` 
 - map:
     - $ref: task.options.account
-      into: account_url
       transform:
-        js: '(command, context, value) => "https://infostream.fun/cgi-bin/0000.pl?link=https://vk.com/ukr.groups"'
-            
+        apply:
+          - js: (command, context, value) => `https://infostream.fun/cgi-bin/0000.pl?link=https://vk.com/${value}`
+      into: account_url
+
 - fetch:
     request:
       method: GET
@@ -60,7 +61,7 @@
 # вибірка із "page" всіх повідомлень (CSS-селектор ```div._post_content```) div._post 
 - all:
     $ref: page
-    select: div._post
+    select: div[class="_post post page_block all own post--withPostBottomAction  post--with-likes closed_comments deep_active"]
     into: res
 
 # оброблення елементів колекції ```res```   
@@ -87,7 +88,9 @@
                 - html
                 - html->$
             into: msg
-       # вибірка із "msg" id публікації повідомлення (CSS-селектор ```div.author```)
+
+      # вибірка із "msg" id публікації повідомлення (CSS-селектор ```div.author```)
+      # розміщення прямого посилання на повідомлення в ```res.scraper.message.href```
       - once:
           $ref: msg
           select: a.author
@@ -97,7 +100,9 @@
                 apply:
                   - attributes: data-post-id
                   - project: data-post-id
-              into: res.scraper.message.id
+                  - js: (command, context, value) => `${context.account_url}?w=wall${value}`
+              into: res.scraper.message.href
+
       # вибірка із "msg" тексту повідомлення (CSS-селектор ```div.wall_text```)
       - once:
           $ref: msg
@@ -107,6 +112,7 @@
             - transform: 
                 apply:
                   - text
+                  - js: (command, context, value) => `${value.replace(/(\n)/g, " ")} `
                   - js: '(command, context, value) => value.replace(/[\u2000-\uffff]+/g, " ")'
               into: res.scraper.message.text
             
@@ -114,23 +120,21 @@
             - transform: html
               into: res.scraper.message.raw.html
       
-      # перетворення ```res.scraper.message.text``` в сигнатуру md5 та поміщення результату в ```res.scraper.message.md5```
       - map:
-          $ref: res.scraper.message.text
-          transform: md5
-          into: res.scraper.message.md5 
-     
-      # вибірка із "msg" часу публікації повідомлення (CSS-селектор ```time```)
-      - once:
-          $ref: msg
-          select: span.rel_date
-          apply:
-            - transform: 
-                # вибірка із елемента ```time``` атрибут "datetime" та розміщення його в ```res.scraper.message.publishedAt```
-                apply:
-                  - text
-              into: res.scraper.message.publishedAt
-    
+          # перетворення ```res.scraper.message.text``` в сигнатуру md5 та 
+          # поміщення результату в ```res.scraper.message.md5```
+          - $ref: res.scraper.message.text
+            transform: md5
+            into: res.scraper.message.md5
+            
+          # формування дати публікації як дати сканування в форматі iso та
+          # поміщення її у ```res.scraper.scrapedAt```
+          - transform: date
+            into: res.scraper.message.publishedAt
+      
+      # вибірка із "page" всіх посилань на зображення (селектор ```img[class="page_post_thumb_wrap"]```)      
+      # поміщення результату в ```images```
+
       # вибірка із "msg" всіх елементів, що містять посилання (CSS-селектор ```div.wall_post_text a```)
       - all:
           $ref: msg
@@ -141,7 +145,7 @@
       - map:
           $ref: $l
           transform:
-            - js: (command, context, value) => value.map( a => a.attr("href"))
+            - js: (command, context, value) => value.map( a => a.attr("title"))
             - js: >
                         (command, context, value) => { 
                           if (value) {

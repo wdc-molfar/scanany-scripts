@@ -41,7 +41,7 @@
 # вибір даних із джерела
 # вибірка та оброблення сторінки зі стрічкою публікацій з використанням ```axios-plugin``` за адресою ```url``` 
 - map:
-    - $ref: options.task.options.account
+    - $ref: task.options.account
       into: account_url
       transform:
         js: '(command, context, value) => "https://infostream.fun/cgi-bin/0000.pl?link=https://vk.com/ukr.groups"'
